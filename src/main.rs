@@ -1,7 +1,13 @@
-use sandboxdb::storage::tmp::taive;
+use sandboxdb::storage::schema::Schema;
 
 fn main() {
-
-    taive()
-
+    println!(
+        "{:?}",
+        Schema::from_string(
+            "id INT, \
+        date TIMESTAMP"
+                .to_string()
+        )
+        .unwrap()
+    );
 }
