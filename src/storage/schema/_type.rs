@@ -1,4 +1,4 @@
-use crate::storage::schema::encoding::Encoding;
+use crate::storage::schema::encoding::SchemaEncoding;
 use crate::storage::schema::schema_error::SchemaError;
 use std::mem;
 
@@ -29,7 +29,7 @@ impl Type {
     }
 }
 
-impl Encoding<Type> for Type {
+impl SchemaEncoding<Type> for Type {
     fn from_str(type_str: &str) -> Result<Type, SchemaError> {
         match type_str.to_uppercase().trim() {
             "BOOLEAN" => Ok(Type::BOOLEAN),

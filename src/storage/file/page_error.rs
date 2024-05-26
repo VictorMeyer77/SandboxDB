@@ -1,6 +1,7 @@
-use crate::storage::page::slot::Slot;
 use std::error::Error;
 use std::fmt;
+
+use crate::storage::file::slot::Slot;
 
 #[derive(Clone, PartialEq)]
 pub enum PageError {

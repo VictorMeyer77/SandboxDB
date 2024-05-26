@@ -1,20 +1,20 @@
 use crc32fast::hash;
 
-use crate::storage::page::encoding::Encoding;
-use crate::storage::page::page_error::PageError;
-use crate::storage::page::page_header::PageHeader;
-use crate::storage::page::slot::Slot;
-use crate::storage::page::tuple::Tuple;
+use crate::storage::file::encoding::FileEncoding;
+use crate::storage::file::page_error::PageError;
+use crate::storage::file::page_header::PageHeader;
+use crate::storage::file::slot::Slot;
+use crate::storage::file::tuple::Tuple;
 use crate::storage::schema::schema::Schema;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Page {
-    schema: Schema,
-    header: PageHeader,
-    slots: Vec<Slot>,
-    tuples: Vec<Tuple>,
+    pub schema: Schema,
+    pub header: PageHeader,
+    pub slots: Vec<Slot>,
+    pub tuples: Vec<Tuple>,
 }
-
+//todo voir hash map pour slot et tuple
 impl Page {
     pub fn build(
         schema: &Schema,
@@ -137,7 +137,7 @@ impl Page {
     }
 }
 
-impl Encoding<Page> for Page {
+impl FileEncoding<Page> for Page {
     fn as_bytes(&self) -> Vec<u8> {
         let mut concat_bytes: Vec<u8> = Vec::new();
         concat_bytes.extend_from_slice(&self.header.as_bytes());
@@ -185,8 +185,8 @@ impl Encoding<Page> for Page {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::page::tuple_header::TupleHeader;
-    use crate::storage::schema::encoding::Encoding as SchemaEncoding;
+    use crate::storage::file::tuple_header::TupleHeader;
+    use crate::storage::schema::encoding::SchemaEncoding;
 
     use super::*;
 

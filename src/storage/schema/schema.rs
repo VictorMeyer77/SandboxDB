@@ -1,4 +1,4 @@
-use crate::storage::schema::encoding::Encoding;
+use crate::storage::schema::encoding::SchemaEncoding;
 use crate::storage::schema::field::Field;
 use crate::storage::schema::schema_error::SchemaError;
 
@@ -18,7 +18,7 @@ impl Schema {
     }
 }
 
-impl Encoding<Schema> for Schema {
+impl SchemaEncoding<Schema> for Schema {
     fn from_str(schema: &str) -> Result<Schema, SchemaError> {
         let fields_str = schema.trim().split_terminator(",");
         let fields_result: Vec<Result<Field, SchemaError>> =
@@ -39,8 +39,9 @@ impl Encoding<Schema> for Schema {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::storage::schema::_type::Type;
+
+    use super::*;
 
     #[test]
     fn schema_from_str_should_return_struct() {

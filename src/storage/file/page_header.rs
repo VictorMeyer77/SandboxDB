@@ -1,5 +1,5 @@
-use crate::storage::page::encoding::Encoding;
-use crate::storage::page::page_error::PageError;
+use crate::storage::file::encoding::FileEncoding;
+use crate::storage::file::page_error::PageError;
 use crate::storage::schema::schema::Schema;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,15 +25,15 @@ impl PageHeader {
     }
 }
 
-impl Encoding<PageHeader> for PageHeader {
+impl FileEncoding<PageHeader> for PageHeader {
     fn as_bytes(&self) -> Vec<u8> {
         let mut concat_bytes: Vec<u8> = Vec::new();
         concat_bytes.extend_from_slice(&self.page_size.to_le_bytes());
         concat_bytes.extend_from_slice(&self.slots.to_le_bytes());
         concat_bytes.extend_from_slice(&self.checksum.to_le_bytes());
         concat_bytes.extend_from_slice(&self.version);
-        concat_bytes.extend_from_slice(&self.visibility.to_le_bytes());
-        concat_bytes.extend_from_slice(&self.compression.to_le_bytes());
+        concat_bytes.extend_from_slice(&[self.visibility]);
+        concat_bytes.extend_from_slice(&[self.compression]);
         concat_bytes
     }
 

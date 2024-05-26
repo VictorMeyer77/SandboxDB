@@ -1,6 +1,6 @@
-use crate::storage::page::encoding::Encoding;
-use crate::storage::page::page_error::PageError;
-use crate::storage::page::tuple_header::TupleHeader;
+use crate::storage::file::encoding::FileEncoding;
+use crate::storage::file::page_error::PageError;
+use crate::storage::file::tuple_header::TupleHeader;
 use crate::storage::schema::schema::Schema;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,7 +25,7 @@ impl Tuple {
     }
 }
 
-impl Encoding<Tuple> for Tuple {
+impl FileEncoding<Tuple> for Tuple {
     fn as_bytes(&self) -> Vec<u8> {
         let mut concat_bytes: Vec<u8> = Vec::new();
         concat_bytes.extend_from_slice(&self.header.as_bytes());
@@ -43,7 +43,7 @@ impl Encoding<Tuple> for Tuple {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::schema::encoding::Encoding as SchemaEncoding;
+    use crate::storage::schema::encoding::SchemaEncoding;
 
     use super::*;
 

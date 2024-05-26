@@ -1,6 +1,8 @@
-pub mod encoding;
+mod encoding;
+mod file;
+mod file_header;
 pub mod page;
-mod page_error;
+pub mod page_error;
 mod page_header;
 mod slot;
 mod tuple;

@@ -1,5 +1,5 @@
 use crate::storage::schema::_type::Type;
-use crate::storage::schema::encoding::Encoding;
+use crate::storage::schema::encoding::SchemaEncoding;
 use crate::storage::schema::schema_error::SchemaError;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -18,7 +18,7 @@ impl Field {
     }
 }
 
-impl Encoding<Field> for Field {
+impl SchemaEncoding<Field> for Field {
     fn from_str(field_str: &str) -> Result<Field, SchemaError> {
         let name_and_type: Vec<&str> = field_str.trim().split_whitespace().collect();
         if name_and_type.len() != 2 {
@@ -38,8 +38,6 @@ impl Encoding<Field> for Field {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // Field
 
     #[test]
     fn field_from_str_should_return_struct() {

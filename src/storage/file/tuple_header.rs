@@ -1,5 +1,5 @@
-use crate::storage::page::encoding::Encoding;
-use crate::storage::page::page_error::PageError;
+use crate::storage::file::encoding::FileEncoding;
+use crate::storage::file::page_error::PageError;
 use crate::storage::schema::schema::Schema;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -17,7 +17,7 @@ impl TupleHeader {
     }
 }
 
-impl Encoding<TupleHeader> for TupleHeader {
+impl FileEncoding<TupleHeader> for TupleHeader {
     fn as_bytes(&self) -> Vec<u8> {
         let mut concat_bytes: Vec<u8> = Vec::new();
         concat_bytes.extend_from_slice(&[self.visibility]);
