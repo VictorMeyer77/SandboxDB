@@ -63,11 +63,11 @@ impl Page {
 
     pub fn insert(&mut self, nulls: &[u8], data: &[u8]) -> Result<(), PageError> {
         let tuple = Tuple::build(&self.schema, nulls, data)?;
-        let tuple_size = tuple.get_bytes_size();
+        let tuple_size = tuple.get_bytes_size() as u32;
         let mut free_slots: Vec<Slot> = self
             .get_free_slots()?
             .into_iter()
-            .filter(|slot| slot.length as usize > tuple_size)
+            .filter(|slot| slot.length > tuple_size)
             .collect();
         if free_slots.is_empty() {
             Err(PageError::PageOverflow(
@@ -77,8 +77,7 @@ impl Page {
             free_slots.sort_by_key(|slot| slot.length);
             let slot = Slot::build(
                 free_slots.first().unwrap().offset + free_slots.first().unwrap().length
-                    - tuple_size as u32,
-                tuple_size as u32,
+                    - tuple_size, tuple_size,
             );
             self.slots.push(slot);
             self.tuples.push(tuple);
@@ -170,7 +169,7 @@ impl Encoding<Page> for Page {
                     &bytes[slot.offset as usize..(slot.offset + slot.length) as usize],
                     Some(&schema),
                 )
-                .unwrap()
+                    .unwrap()
             })
             .collect();
         Ok(Page {

@@ -68,7 +68,7 @@ mod tests {
                 &[213, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 54, 0, 3],
                 None,
             )
-                .unwrap(),
+            .unwrap(),
             PageHeader::build(981, [0, 12, 54], 3)
         )
     }
