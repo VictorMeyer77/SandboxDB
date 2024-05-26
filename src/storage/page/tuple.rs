@@ -46,8 +46,7 @@ mod tests {
     use super::*;
 
     fn get_test_schema() -> Schema {
-        Schema::from_string("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP".to_string())
-            .unwrap()
+        Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP").unwrap()
     }
 
     #[test]
@@ -79,7 +78,7 @@ mod tests {
                 ],
                 Some(&get_test_schema()),
             )
-                .unwrap(),
+            .unwrap(),
             Tuple::build(&get_test_schema(), &[0, 0, 1, 0], &[4; 32]).unwrap()
         )
     }

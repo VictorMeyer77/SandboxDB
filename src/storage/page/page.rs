@@ -161,7 +161,7 @@ impl Encoding<Page> for Page {
                     &bytes[slot.offset as usize..(slot.offset + slot.length) as usize],
                     Some(&schema),
                 )
-                    .unwrap()
+                .unwrap()
             })
             .collect();
         Ok(Page {
@@ -179,8 +179,7 @@ mod tests {
     use crate::storage::page::tuple_header::TupleHeader;
 
     fn get_test_schema() -> Schema {
-        Schema::from_string("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP".to_string())
-            .unwrap()
+        Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP").unwrap()
     }
 
     fn get_test_page() -> Page {
