@@ -1,2 +1,3 @@
-mod page;
 pub mod schema;
+
+pub mod page;

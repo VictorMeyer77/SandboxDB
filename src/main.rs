@@ -1,13 +1,5 @@
+use sandboxdb::storage::page::page::Page;
 use sandboxdb::storage::schema::Schema;
+use sha2::{Digest, Sha256};
 
-fn main() {
-    println!(
-        "{:?}",
-        Schema::from_string(
-            "id INT, \
-        date TIMESTAMP"
-                .to_string()
-        )
-        .unwrap()
-    );
-}
+fn main() {}

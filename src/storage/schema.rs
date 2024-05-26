@@ -1,11 +1,11 @@
 use std::error::Error;
-use std::fmt;
+use std::{fmt, mem};
 
-// TODO display/debug properly
+// TODO display/debug properly -  string to str
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Schema {
-    fields: Vec<Field>,
+    pub fields: Vec<Field>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -23,7 +23,7 @@ pub enum Type {
     BIGINT,    // i128
     FLOAT,     // f64
     TIMESTAMP, // u64
-    STRING,
+    STRING,    // TODO
 }
 
 #[derive(Clone, PartialEq)]
@@ -51,6 +51,15 @@ impl Schema {
             Ok(Schema { fields })
         }
     }
+
+    pub fn tuple_size(&self, nulls: Option<&Vec<u8>>) -> usize {
+        self.fields
+            .iter()
+            .zip(nulls.unwrap_or(&vec![0; self.fields.len()]).iter())
+            .filter(|(_, n)| **n == 0)
+            .map(|(f, _)| f.get_type().get_byte_size())
+            .sum()
+    }
 }
 
 impl Field {
@@ -67,6 +76,10 @@ impl Field {
                 _type: Type::from_string(name_and_type[1].to_string())?,
             })
         }
+    }
+
+    pub fn get_type(&self) -> &Type {
+        &self._type
     }
 }
 
@@ -85,6 +98,19 @@ impl Type {
                 "\n- Unknown type \"{}\"",
                 type_string
             ))),
+        }
+    }
+
+    pub fn get_byte_size(&self) -> usize {
+        match self {
+            Type::BOOLEAN => mem::size_of::<bool>(),
+            Type::TINYINT => mem::size_of::<i8>(),
+            Type::SMALLINT => mem::size_of::<i16>(),
+            Type::INT => mem::size_of::<i64>(),
+            Type::BIGINT => mem::size_of::<i128>(),
+            Type::FLOAT => mem::size_of::<f64>(),
+            Type::TIMESTAMP => mem::size_of::<u64>(),
+            Type::STRING => 0, // TODO
         }
     }
 }
@@ -142,6 +168,24 @@ mod tests {
         Schema::from_string("id INT, name STRIN, minor ".to_string()).unwrap();
     }
 
+    #[test]
+    fn schema_tuple_size_should_return_max_bytes() {
+        let schema = Schema::from_string(
+            "id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP".to_string(),
+        )
+        .unwrap();
+        assert_eq!(33, schema.tuple_size(None));
+    }
+
+    #[test]
+    fn schema_tuple_size_should_return_size_with_null() {
+        let schema = Schema::from_string(
+            "id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP".to_string(),
+        )
+        .unwrap();
+        //assert_eq!(9, schema.tuple_size(Some(vec![1, 0, 0, 1])));
+    }
+
     // Field
 
     #[test]
@@ -150,7 +194,7 @@ mod tests {
             Field::from_string("id INT".to_string()).unwrap(),
             Field {
                 name: "id".to_string(),
-                _type: Type::INT
+                _type: Type::INT,
             }
         );
     }
