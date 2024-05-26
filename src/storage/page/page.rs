@@ -1,10 +1,11 @@
+use crc32fast::hash;
+
 use crate::storage::page::encoding::Encoding;
 use crate::storage::page::page_error::PageError;
 use crate::storage::page::page_header::PageHeader;
 use crate::storage::page::slot::Slot;
 use crate::storage::page::tuple::Tuple;
-use crate::storage::schema::Schema;
-use crc32fast::hash;
+use crate::storage::schema::schema::Schema;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Page {
@@ -77,7 +78,8 @@ impl Page {
             free_slots.sort_by_key(|slot| slot.length);
             let slot = Slot::build(
                 free_slots.first().unwrap().offset + free_slots.first().unwrap().length
-                    - tuple_size, tuple_size,
+                    - tuple_size,
+                tuple_size,
             );
             self.slots.push(slot);
             self.tuples.push(tuple);
@@ -169,7 +171,7 @@ impl Encoding<Page> for Page {
                     &bytes[slot.offset as usize..(slot.offset + slot.length) as usize],
                     Some(&schema),
                 )
-                    .unwrap()
+                .unwrap()
             })
             .collect();
         Ok(Page {
@@ -183,8 +185,10 @@ impl Encoding<Page> for Page {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::storage::page::tuple_header::TupleHeader;
+    use crate::storage::schema::encoding::Encoding as SchemaEncoding;
+
+    use super::*;
 
     fn get_test_schema() -> Schema {
         Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP").unwrap()

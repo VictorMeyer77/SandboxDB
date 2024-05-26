@@ -1,6 +1,6 @@
 use crate::storage::page::encoding::Encoding;
 use crate::storage::page::page_error::PageError;
-use crate::storage::schema::Schema;
+use crate::storage::schema::schema::Schema;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Slot {

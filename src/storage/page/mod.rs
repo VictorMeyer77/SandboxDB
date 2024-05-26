@@ -1,4 +1,4 @@
-mod encoding;
+pub mod encoding;
 pub mod page;
 mod page_error;
 mod page_header;

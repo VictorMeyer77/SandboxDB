@@ -1,5 +1,5 @@
 use crate::storage::page::page_error::PageError;
-use crate::storage::schema::Schema;
+use crate::storage::schema::schema::Schema;
 
 pub trait Encoding<T> {
     fn as_bytes(&self) -> Vec<u8>;

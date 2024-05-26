@@ -1,7 +1,7 @@
 use crate::storage::page::encoding::Encoding;
 use crate::storage::page::page_error::PageError;
 use crate::storage::page::tuple_header::TupleHeader;
-use crate::storage::schema::Schema;
+use crate::storage::schema::schema::Schema;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tuple {
@@ -43,6 +43,8 @@ impl Encoding<Tuple> for Tuple {
 
 #[cfg(test)]
 mod tests {
+    use crate::storage::schema::encoding::Encoding as SchemaEncoding;
+
     use super::*;
 
     fn get_test_schema() -> Schema {
