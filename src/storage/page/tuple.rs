@@ -10,7 +10,7 @@ pub struct Tuple {
 }
 
 impl Tuple {
-    pub fn build(schema: &Schema, nulls: &Vec<u8>, data: Vec<u8>) -> Result<Tuple, PageError> {
+    pub fn build(schema: &Schema, nulls: &[u8], data: &[u8]) -> Result<Tuple, PageError> {
         if schema.tuple_size(Some(nulls)) != data.len() {
             Err(PageError::CorruptedTuple(format!(
                 "Data {:?} with nulls {:?} don't match with given schema {:?}",
@@ -19,7 +19,7 @@ impl Tuple {
         } else {
             Ok(Tuple {
                 header: TupleHeader::build(nulls),
-                data,
+                data: data.to_vec(),
             })
         }
     }
@@ -33,15 +33,11 @@ impl Encoding<Tuple> for Tuple {
         concat_bytes
     }
 
-    fn from_bytes(bytes: Vec<u8>, schema: Option<&Schema>) -> Result<Tuple, PageError> {
+    fn from_bytes(bytes: &[u8], schema: Option<&Schema>) -> Result<Tuple, PageError> {
         let schema = schema.ok_or(PageError::MissingSchema)?;
         let columns_total = schema.fields.len();
         let nulls = &bytes[1..(columns_total + 1)];
-        Tuple::build(
-            schema,
-            &nulls.to_vec(),
-            bytes[(columns_total + 1)..].to_vec(),
-        )
+        Tuple::build(schema, &nulls, &bytes[(columns_total + 1)..])
     }
 }
 
@@ -57,13 +53,13 @@ mod tests {
     #[test]
     #[should_panic]
     fn build_should_panic_if_data_dont_match_schema() {
-        Tuple::build(&get_test_schema(), &vec![0, 0, 1, 0], vec![4; 33]).unwrap();
+        Tuple::build(&get_test_schema(), &[0, 0, 1, 0], &[4; 33]).unwrap();
     }
 
     #[test]
     fn as_bytes_should_convert_tuple() {
         assert_eq!(
-            Tuple::build(&get_test_schema(), &vec![0, 0, 1, 0], vec![4; 32])
+            Tuple::build(&get_test_schema(), &[0, 0, 1, 0], &[4; 32])
                 .unwrap()
                 .as_bytes(),
             vec![
@@ -77,14 +73,14 @@ mod tests {
     fn from_bytes_should_convert_bytes() {
         assert_eq!(
             Tuple::from_bytes(
-                vec![
+                &[
                     0, 0, 0, 1, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
                     4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
                 ],
                 Some(&get_test_schema()),
             )
                 .unwrap(),
-            Tuple::build(&get_test_schema(), &vec![0, 0, 1, 0], vec![4; 32]).unwrap()
+            Tuple::build(&get_test_schema(), &[0, 0, 1, 0], &[4; 32]).unwrap()
         )
     }
 }

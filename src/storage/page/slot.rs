@@ -22,7 +22,7 @@ impl Encoding<Slot> for Slot {
         concat_bytes
     }
 
-    fn from_bytes(bytes: Vec<u8>, _schema: Option<&Schema>) -> Result<Slot, PageError> {
+    fn from_bytes(bytes: &[u8], _schema: Option<&Schema>) -> Result<Slot, PageError> {
         Ok(Slot {
             offset: u32::from_le_bytes(bytes[0..4].try_into().unwrap()),
             length: u32::from_le_bytes(bytes[4..8].try_into().unwrap()),
@@ -42,7 +42,7 @@ mod tests {
     #[test]
     fn from_bytes_should_convert_bytes() {
         assert_eq!(
-            Slot::from_bytes([213, 3, 0, 0, 12, 0, 0, 0].to_vec(), None).unwrap(),
+            Slot::from_bytes(&[213, 3, 0, 0, 12, 0, 0, 0], None).unwrap(),
             Slot::build(981, 12)
         )
     }

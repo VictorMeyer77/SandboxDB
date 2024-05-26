@@ -15,8 +15,8 @@ pub struct Page {
 
 impl Page {
     pub fn build(
-        page_size: u32,
         schema: &Schema,
+        page_size: u32,
         version: [u8; 3],
         compression: u8,
     ) -> Result<Page, PageError> {
@@ -61,7 +61,7 @@ impl Page {
     }
 
     pub fn insert(&mut self, nulls: &[u8], data: &[u8]) -> Result<(), PageError> {
-        let tuple = Tuple::build(&self.schema, &nulls.to_vec(), data.to_vec())?;
+        let tuple = Tuple::build(&self.schema, nulls, data)?;
         let tuple_size = tuple.get_bytes_size();
         let mut free_slots: Vec<Slot> = self
             .get_free_slots()?
@@ -147,21 +147,21 @@ impl Encoding<Page> for Page {
         concat_bytes
     }
 
-    fn from_bytes(bytes: Vec<u8>, schema: Option<&Schema>) -> Result<Page, PageError> {
+    fn from_bytes(bytes: &[u8], schema: Option<&Schema>) -> Result<Page, PageError> {
         let schema = schema.ok_or(PageError::MissingSchema)?;
-        let header = PageHeader::from_bytes(bytes[..45].to_vec(), None)?;
+        let header = PageHeader::from_bytes(&bytes[..45], None)?;
         let slots: Vec<Slot> = bytes[45..(45 + (header.slots as usize * 8))]
             .chunks(8)
-            .map(|chunk| Slot::from_bytes(chunk.to_vec(), None).unwrap())
+            .map(|chunk| Slot::from_bytes(&chunk, None).unwrap())
             .collect();
         let tuples = slots
             .iter()
             .map(|slot| {
                 Tuple::from_bytes(
-                    bytes[slot.offset as usize..(slot.offset + slot.length) as usize].to_vec(),
+                    &bytes[slot.offset as usize..(slot.offset + slot.length) as usize],
                     Some(&schema),
                 )
-                    .unwrap()
+                .unwrap()
             })
             .collect();
         Ok(Page {
@@ -184,16 +184,16 @@ mod tests {
     }
 
     fn get_test_page() -> Page {
-        let mut page = Page::build(500, &get_test_schema(), [10, 28, 45], 1).unwrap();
+        let mut page = Page::build(&get_test_schema(), 500, [10, 28, 45], 1).unwrap();
         page.slots = vec![
             Slot::build(462, 38),
             Slot::build(350, 22),
             Slot::build(250, 30),
         ];
         page.tuples = vec![
-            Tuple::build(&get_test_schema(), &vec![0; 4], vec![2; 33]).unwrap(),
-            Tuple::build(&get_test_schema(), &vec![1, 0, 0, 0], vec![8; 17]).unwrap(),
-            Tuple::build(&get_test_schema(), &vec![0, 0, 0, 1], vec![65; 25]).unwrap(),
+            Tuple::build(&get_test_schema(), &[0; 4], &[2; 33]).unwrap(),
+            Tuple::build(&get_test_schema(), &[1, 0, 0, 0], &[8; 17]).unwrap(),
+            Tuple::build(&get_test_schema(), &[0, 0, 0, 1], &[65; 25]).unwrap(),
         ];
         page.header.slots = 3;
         page
@@ -232,7 +232,7 @@ mod tests {
     fn from_bytes_should_convert_bytes() {
         assert_eq!(
             get_test_page(),
-            Page::from_bytes(get_test_page_bytes(), Some(&get_test_schema())).unwrap()
+            Page::from_bytes(&get_test_page_bytes(), Some(&get_test_schema())).unwrap()
         );
     }
 
@@ -266,7 +266,7 @@ mod tests {
         assert_eq!(page.get_bytes_size(), 500);
         assert_eq!(
             page,
-            Page::from_bytes(page.as_bytes(), Some(&get_test_schema())).unwrap()
+            Page::from_bytes(&page.as_bytes(), Some(&get_test_schema())).unwrap()
         );
         assert_eq!(
             page.get_free_slots().unwrap(),
@@ -291,7 +291,7 @@ mod tests {
     #[should_panic]
     fn insert_should_panic_if_full_page() {
         let mut page = get_test_page();
-        for _ in 0..10 {
+        for _ in 0..7 {
             page.insert(&[0, 0, 0, 0], &[18; 33]).unwrap();
         }
     }
@@ -354,7 +354,7 @@ mod tests {
                 Tuple {
                     header: TupleHeader {
                         visibility: 0,
-                        nulls: [1, 0, 0, 0].to_vec().to_vec(),
+                        nulls: [1, 0, 0, 0].to_vec(),
                     },
                     data: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8].to_vec(),
                 },

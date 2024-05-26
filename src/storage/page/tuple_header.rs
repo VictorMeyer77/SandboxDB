@@ -9,10 +9,10 @@ pub struct TupleHeader {
 }
 
 impl TupleHeader {
-    pub fn build(nulls: &Vec<u8>) -> TupleHeader {
+    pub fn build(nulls: &[u8]) -> TupleHeader {
         TupleHeader {
             visibility: 0,
-            nulls: nulls.clone(),
+            nulls: nulls.to_vec(),
         }
     }
 }
@@ -25,9 +25,9 @@ impl Encoding<TupleHeader> for TupleHeader {
         concat_bytes
     }
 
-    fn from_bytes(bytes: Vec<u8>, _schema: Option<&Schema>) -> Result<TupleHeader, PageError> {
+    fn from_bytes(bytes: &[u8], _schema: Option<&Schema>) -> Result<TupleHeader, PageError> {
         Ok(TupleHeader {
-            visibility: bytes[0].clone(),
+            visibility: bytes[0],
             nulls: bytes[1..].to_vec(),
         })
     }
@@ -40,7 +40,7 @@ mod tests {
     #[test]
     fn as_bytes_should_convert_tuple_header() {
         assert_eq!(
-            TupleHeader::build(&vec![0, 1, 0, 1]).as_bytes(),
+            TupleHeader::build(&[0, 1, 0, 1]).as_bytes(),
             [0, 0, 1, 0, 1]
         )
     }
@@ -48,8 +48,8 @@ mod tests {
     #[test]
     fn from_bytes_should_convert_bytes() {
         assert_eq!(
-            TupleHeader::from_bytes([0, 0, 1, 0, 1].to_vec(), None).unwrap(),
-            TupleHeader::build(&[0, 1, 0, 1].to_vec())
+            TupleHeader::from_bytes(&[0, 0, 1, 0, 1], None).unwrap(),
+            TupleHeader::build(&[0, 1, 0, 1])
         )
     }
 }

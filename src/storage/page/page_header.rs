@@ -37,7 +37,7 @@ impl Encoding<PageHeader> for PageHeader {
         concat_bytes
     }
 
-    fn from_bytes(bytes: Vec<u8>, _schema: Option<&Schema>) -> Result<PageHeader, PageError> {
+    fn from_bytes(bytes: &[u8], _schema: Option<&Schema>) -> Result<PageHeader, PageError> {
         Ok(PageHeader {
             page_size: u32::from_le_bytes(bytes[0..4].try_into().unwrap()),
             slots: u32::from_le_bytes(bytes[4..8].try_into().unwrap()),
@@ -68,13 +68,13 @@ mod tests {
     fn from_bytes_should_convert_bytes() {
         assert_eq!(
             PageHeader::from_bytes(
-                vec![
+                &[
                     213, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 54, 0, 3,
                 ],
                 None,
             )
-                .unwrap(),
+            .unwrap(),
             PageHeader::build(981, [0, 12, 54], 3)
         )
     }

@@ -52,7 +52,7 @@ impl Schema {
         }
     }
 
-    pub fn tuple_size(&self, nulls: Option<&Vec<u8>>) -> usize {
+    pub fn tuple_size(&self, nulls: Option<&[u8]>) -> usize {
         self.fields
             .iter()
             .zip(nulls.unwrap_or(&vec![0; self.fields.len()]).iter())
@@ -173,7 +173,7 @@ mod tests {
         let schema = Schema::from_string(
             "id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP".to_string(),
         )
-        .unwrap();
+            .unwrap();
         assert_eq!(33, schema.tuple_size(None));
     }
 
@@ -182,8 +182,8 @@ mod tests {
         let schema = Schema::from_string(
             "id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP".to_string(),
         )
-        .unwrap();
-        //assert_eq!(9, schema.tuple_size(Some(vec![1, 0, 0, 1])));
+            .unwrap();
+        assert_eq!(9, schema.tuple_size(Some(&[1, 0, 0, 1])));
     }
 
     // Field
