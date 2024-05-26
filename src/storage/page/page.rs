@@ -4,6 +4,7 @@ use crate::storage::page::page_header::PageHeader;
 use crate::storage::page::slot::Slot;
 use crate::storage::page::tuple::Tuple;
 use crate::storage::schema::Schema;
+use crc32fast::hash;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Page {
@@ -36,7 +37,7 @@ impl Page {
             .map(|slot| (slot.offset..(slot.offset + slot.length)).collect())
             .collect();
         let used_bytes: Vec<u32> = used_bytes.concat();
-        let free_bytes: Vec<u32> = ((45 + self.slots.len() as u32 * 8)..self.header.page_size)
+        let free_bytes: Vec<u32> = ((17 + self.slots.len() as u32 * 8)..self.header.page_size)
             .into_iter()
             .filter(|byte| !used_bytes.contains(byte))
             .collect();
@@ -125,6 +126,14 @@ impl Page {
             .collect();
         Ok(tuples)
     }
+
+    pub fn refresh_checksum(&mut self) {
+        self.header.checksum = hash(&self.as_bytes()[17..])
+    }
+
+    pub fn valid_checksum(&self) -> bool {
+        self.header.checksum == hash(&self.as_bytes()[17..])
+    }
 }
 
 impl Encoding<Page> for Page {
@@ -149,8 +158,8 @@ impl Encoding<Page> for Page {
 
     fn from_bytes(bytes: &[u8], schema: Option<&Schema>) -> Result<Page, PageError> {
         let schema = schema.ok_or(PageError::MissingSchema)?;
-        let header = PageHeader::from_bytes(&bytes[..45], None)?;
-        let slots: Vec<Slot> = bytes[45..(45 + (header.slots as usize * 8))]
+        let header = PageHeader::from_bytes(&bytes[..17], None)?;
+        let slots: Vec<Slot> = bytes[17..(17 + (header.slots as usize * 8))]
             .chunks(8)
             .map(|chunk| Slot::from_bytes(&chunk, None).unwrap())
             .collect();
@@ -200,9 +209,9 @@ mod tests {
 
     fn get_test_page_bytes() -> Vec<u8> {
         vec![
-            244, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 28, 45, 0, 1, 206, 1, 0, 0, 38, 0, 0, 0, 94, 1,
-            0, 0, 22, 0, 0, 0, 250, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            244, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 10, 28, 45, 0, 1, 206, 1, 0, 0, 38, 0, 0, 0, 94,
+            1, 0, 0, 22, 0, 0, 0, 250, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -241,8 +250,8 @@ mod tests {
             get_test_page().get_free_slots().unwrap(),
             vec![
                 Slot {
-                    offset: 69,
-                    length: 181,
+                    offset: 41,
+                    length: 209,
                 },
                 Slot {
                     offset: 280,
@@ -271,8 +280,8 @@ mod tests {
             page.get_free_slots().unwrap(),
             vec![
                 Slot {
-                    offset: 93,
-                    length: 157,
+                    offset: 65,
+                    length: 185,
                 },
                 Slot {
                     offset: 280,
@@ -290,7 +299,7 @@ mod tests {
     #[should_panic]
     fn insert_should_panic_if_full_page() {
         let mut page = get_test_page();
-        for _ in 0..7 {
+        for _ in 0..8 {
             page.insert(&[0, 0, 0, 0], &[18; 33]).unwrap();
         }
     }
@@ -321,8 +330,8 @@ mod tests {
         assert_eq!(
             vec![
                 Slot {
-                    offset: 69,
-                    length: 281,
+                    offset: 41,
+                    length: 309,
                 },
                 Slot {
                     offset: 372,
@@ -366,5 +375,13 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn valid_checksum_should_control_integrity() {
+        let mut page = get_test_page();
+        assert!(!page.valid_checksum());
+        page.refresh_checksum();
+        assert!(page.valid_checksum());
     }
 }
