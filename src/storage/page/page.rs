@@ -86,7 +86,7 @@ impl Page {
         }
     }
 
-    pub fn delete_by_slots(&mut self, slots: &Vec<Slot>) -> Result<usize, PageError> {
+    pub fn delete_by_slots(&mut self, slots: &[Slot]) -> Result<usize, PageError> {
         let mut indexes: Vec<usize> = self
             .slots
             .iter()
@@ -109,12 +109,12 @@ impl Page {
         nulls: &[u8],
         data: &[u8],
     ) -> Result<(), PageError> {
-        self.delete_by_slots(&vec![slot])?;
+        self.delete_by_slots(&[slot])?;
         self.insert(nulls, data)?;
         Ok(())
     }
 
-    pub fn read_by_slots(&self, slots: &Vec<Slot>) -> Result<Vec<Tuple>, PageError> {
+    pub fn read_by_slots(&self, slots: &[Slot]) -> Result<Vec<Tuple>, PageError> {
         let tuples: Vec<Tuple> = self
             .tuples
             .iter()
@@ -161,7 +161,7 @@ impl Encoding<Page> for Page {
                     &bytes[slot.offset as usize..(slot.offset + slot.length) as usize],
                     Some(&schema),
                 )
-                .unwrap()
+                    .unwrap()
             })
             .collect();
         Ok(Page {
@@ -303,7 +303,7 @@ mod tests {
         page.insert(&[0, 0, 0, 0], &[32; 33]).unwrap();
         page.insert(&[0, 0, 0, 0], &[18; 33]).unwrap();
         let count = page
-            .delete_by_slots(&vec![
+            .delete_by_slots(&[
                 Slot::build(344, 6),
                 Slot::build(306, 38),
                 Slot::build(424, 38),
@@ -342,7 +342,7 @@ mod tests {
         page.insert(&[0, 0, 0, 0], &[32; 33]).unwrap();
         page.insert(&[0, 0, 0, 0], &[18; 33]).unwrap();
         let tuples = page
-            .read_by_slots(&vec![
+            .read_by_slots(&[
                 Slot::build(344, 6),
                 Slot::build(350, 22),
                 Slot::build(27, 11),
