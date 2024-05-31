@@ -1,5 +1,5 @@
 use crate::storage::file::encoding::FileEncoding;
-use crate::storage::file::page_error::PageError;
+use crate::storage::file::file_error::FileError;
 use crate::storage::schema::schema::Schema;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,7 +25,7 @@ impl FileEncoding<TupleHeader> for TupleHeader {
         concat_bytes
     }
 
-    fn from_bytes(bytes: &[u8], _schema: Option<&Schema>) -> Result<TupleHeader, PageError> {
+    fn from_bytes(bytes: &[u8], _schema: Option<&Schema>) -> Result<TupleHeader, FileError> {
         Ok(TupleHeader {
             visibility: bytes[0],
             nulls: bytes[1..].to_vec(),

@@ -1,9 +1,10 @@
+use std::collections::HashMap;
+
 use crc32fast::hash;
 
 use crate::storage::file::encoding::FileEncoding;
-use crate::storage::file::page_error::PageError;
+use crate::storage::file::file_error::FileError;
 use crate::storage::file::page_header::PageHeader;
-use crate::storage::file::slot::Slot;
 use crate::storage::file::tuple::Tuple;
 use crate::storage::schema::schema::Schema;
 
@@ -11,120 +12,100 @@ use crate::storage::schema::schema::Schema;
 pub struct Page {
     pub schema: Schema,
     pub header: PageHeader,
-    pub slots: Vec<Slot>,
-    pub tuples: Vec<Tuple>,
+    pub tuples: HashMap<(u32, u32), Tuple>,
 }
-//todo voir hash map pour slot et tuple
+
 impl Page {
-    pub fn build(
-        schema: &Schema,
-        page_size: u32,
-        version: [u8; 3],
-        compression: u8,
-    ) -> Result<Page, PageError> {
-        let header = PageHeader::build(page_size, version, compression);
+    pub fn build(schema: &Schema, page_size: u32, compression: u8) -> Result<Page, FileError> {
+        let header = PageHeader::build(page_size, compression);
         Ok(Page {
             schema: schema.clone(),
             header,
-            slots: vec![],
-            tuples: vec![],
+            tuples: HashMap::new(),
         })
     }
 
-    fn get_free_slots(&self) -> Result<Vec<Slot>, PageError> {
-        let used_bytes: Vec<Vec<u32>> = self
-            .slots
-            .iter()
-            .map(|slot| (slot.offset..(slot.offset + slot.length)).collect())
-            .collect();
-        let used_bytes: Vec<u32> = used_bytes.concat();
-        let free_bytes: Vec<u32> = ((17 + self.slots.len() as u32 * 8)..self.header.page_size)
+    fn get_free_slots(&self) -> Result<Vec<(u32, u32)>, FileError> {
+        let slots: Vec<(u32, u32)> = self.tuples.keys().cloned().collect();
+        let mut slots: Vec<u32> = slots
             .into_iter()
-            .filter(|byte| !used_bytes.contains(byte))
+            .flat_map(|(offset, length)| vec![offset, offset + length])
             .collect();
-        let chunks: Vec<u32> = free_bytes
-            .iter()
-            .enumerate()
-            .filter(|(k, _)| {
-                if k > &(0usize) && k < &(free_bytes.len() - 1) {
-                    free_bytes[*k] - free_bytes[*k - 1] != 1
-                        || free_bytes[*k + 1] - free_bytes[*k] != 1
-                } else {
-                    true
-                }
-            })
-            .map(|(_, v)| *v)
+        slots.sort();
+        if !slots.contains(&self.header.page_size) {
+            slots.push(self.header.page_size);
+        }
+        if !slots.contains(&(14 + self.header.slots * 8)) {
+            slots.insert(0, 14 + self.header.slots * 8)
+        } else {
+            slots.remove(0);
+        }
+        let free_slots: Vec<(u32, u32)> = slots
+            .chunks_exact(2)
+            .map(|chunk| (chunk[0], chunk[1] - chunk[0]))
+            .filter(|(_, length)| *length > 0)
             .collect();
-        let chunks: Vec<Slot> = chunks
-            .chunks(2)
-            .map(|chunk| Slot::build(chunk[0], chunk[1] - chunk[0] + 1))
-            .collect();
-        Ok(chunks)
+        Ok(free_slots)
     }
 
-    pub fn insert(&mut self, nulls: &[u8], data: &[u8]) -> Result<(), PageError> {
+    pub fn insert(&mut self, nulls: &[u8], data: &[u8]) -> Result<(), FileError> {
         let tuple = Tuple::build(&self.schema, nulls, data)?;
-        let tuple_size = tuple.get_bytes_size() as u32;
-        let mut free_slots: Vec<Slot> = self
+        let tuple_size = tuple.bytes_size() as u32;
+        let mut free_slots: Vec<(u32, u32)> = self
             .get_free_slots()?
             .into_iter()
-            .filter(|slot| slot.length > tuple_size)
+            .filter(|(_, length)| *length > tuple_size)
             .collect();
         if free_slots.is_empty() {
-            Err(PageError::PageOverflow(
+            Err(FileError::PageOverflow(
                 "Insertion failed, no more place on this page.".to_string(),
             ))
         } else {
-            free_slots.sort_by_key(|slot| slot.length);
-            let slot = Slot::build(
-                free_slots.first().unwrap().offset + free_slots.first().unwrap().length
-                    - tuple_size,
+            free_slots.sort_by_key(|(_, length)| *length);
+            let slot: (u32, u32) = (
+                free_slots.first().unwrap().0 + free_slots.first().unwrap().1 - tuple_size,
                 tuple_size,
             );
-            self.slots.push(slot);
-            self.tuples.push(tuple);
+            self.tuples.insert(slot, tuple);
             self.header.slots += 1;
             Ok(())
         }
     }
 
-    pub fn delete_by_slots(&mut self, slots: &[Slot]) -> Result<usize, PageError> {
-        let mut indexes: Vec<usize> = self
-            .slots
-            .iter()
-            .enumerate()
-            .filter(|(_, v)| slots.contains(v))
-            .map(|(k, _)| k)
-            .collect();
-        indexes.sort_by(|a, b| b.cmp(a));
-        for i in &indexes {
-            self.slots.remove(*i);
-            self.tuples.remove(*i);
-            self.header.slots -= 1;
+    pub fn delete_by_slots(&mut self, slots: &[(u32, u32)]) -> Result<(), FileError> {
+        for slot in slots {
+            if let Some(_) = self.tuples.remove(slot) {
+                self.header.slots -= 1;
+            }
         }
-        Ok(indexes.len())
+        Ok(())
     }
 
     pub fn update_by_slot(
         &mut self,
-        slot: Slot,
+        slot: (u32, u32),
         nulls: &[u8],
         data: &[u8],
-    ) -> Result<(), PageError> {
-        self.delete_by_slots(&[slot])?;
-        self.insert(nulls, data)?;
-        Ok(())
+    ) -> Result<(), FileError> {
+        match self
+            .tuples
+            .insert(slot, Tuple::build(&self.schema, nulls, data)?)
+        {
+            None => Err(FileError::InvalidSlot(slot)),
+            Some(_) => Ok(()),
+        }
     }
 
-    pub fn read_by_slots(&self, slots: &[Slot]) -> Result<Vec<Tuple>, PageError> {
-        let tuples: Vec<Tuple> = self
-            .tuples
-            .iter()
-            .enumerate()
-            .zip(self.slots.iter().enumerate())
-            .filter(|((_, _), (_, s))| slots.contains(s))
-            .map(|((_, t), (_, _))| t.clone())
-            .collect();
+    pub fn read_by_slots(
+        &self,
+        slots: &[(u32, u32)],
+    ) -> Result<HashMap<(u32, u32), &Tuple>, FileError> {
+        let mut tuples: HashMap<(u32, u32), &Tuple> = HashMap::new();
+        for slot in slots {
+            if let Some(tuple) = self.tuples.get(&slot) {
+                tuples.insert(*slot, tuple);
+            }
+        }
         Ok(tuples)
     }
 
@@ -141,15 +122,12 @@ impl FileEncoding<Page> for Page {
     fn as_bytes(&self) -> Vec<u8> {
         let mut concat_bytes: Vec<u8> = Vec::new();
         concat_bytes.extend_from_slice(&self.header.as_bytes());
-        self.slots
-            .iter()
-            .for_each(|slot| concat_bytes.extend_from_slice(&slot.as_bytes()));
-        let tuple_max_size = concat_bytes.len();
-        let mut tuples: Vec<u8> = vec![0; self.header.page_size as usize - tuple_max_size];
-        self.slots.iter().enumerate().for_each(|(k, v)| {
+        let tuple_offset_start = concat_bytes.len() as u32 + self.header.slots * 8;
+        let mut tuples: Vec<u8> = vec![0; (self.header.page_size - tuple_offset_start) as usize];
+        self.tuples.iter().for_each(|(k, _)| {
+            concat_bytes.extend_from_slice(&[k.0.to_le_bytes(), k.1.to_le_bytes()].concat());
             tuples.splice(
-                v.offset as usize - tuple_max_size
-                    ..(v.offset + v.length - tuple_max_size as u32) as usize,
+                (k.0 - tuple_offset_start) as usize..(k.0 + k.1 - tuple_offset_start) as usize,
                 self.tuples[k].as_bytes(),
             );
         });
@@ -157,27 +135,32 @@ impl FileEncoding<Page> for Page {
         concat_bytes
     }
 
-    fn from_bytes(bytes: &[u8], schema: Option<&Schema>) -> Result<Page, PageError> {
-        let schema = schema.ok_or(PageError::MissingSchema)?;
-        let header = PageHeader::from_bytes(&bytes[..17], None)?;
-        let slots: Vec<Slot> = bytes[17..(17 + (header.slots as usize * 8))]
+    fn from_bytes(bytes: &[u8], schema: Option<&Schema>) -> Result<Page, FileError> {
+        let schema = schema.ok_or(FileError::MissingSchema)?;
+        let header = PageHeader::from_bytes(&bytes[..14], None)?;
+        let slots: Vec<(u32, u32)> = bytes[14..(14 + (header.slots as usize * 8))]
             .chunks(8)
-            .map(|chunk| Slot::from_bytes(&chunk, None).unwrap())
-            .collect();
-        let tuples = slots
-            .iter()
-            .map(|slot| {
-                Tuple::from_bytes(
-                    &bytes[slot.offset as usize..(slot.offset + slot.length) as usize],
-                    Some(&schema),
+            .map(|chunk| {
+                (
+                    u32::from_le_bytes(chunk[0..4].try_into().unwrap()),
+                    u32::from_le_bytes(chunk[4..8].try_into().unwrap()),
                 )
-                .unwrap()
             })
             .collect();
+        let mut tuples: HashMap<(u32, u32), Tuple> = HashMap::new();
+        slots.iter().for_each(|(offset, length)| {
+            tuples.insert(
+                (*offset, *length),
+                Tuple::from_bytes(
+                    &bytes[*offset as usize..(offset + length) as usize],
+                    Some(&schema),
+                )
+                .unwrap(),
+            );
+        });
         Ok(Page {
             schema: schema.clone(),
             header,
-            slots,
             tuples,
         })
     }
@@ -185,7 +168,6 @@ impl FileEncoding<Page> for Page {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::file::tuple_header::TupleHeader;
     use crate::storage::schema::encoding::SchemaEncoding;
 
     use super::*;
@@ -194,49 +176,53 @@ mod tests {
         Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP").unwrap()
     }
 
-    fn get_test_page() -> Page {
-        let mut page = Page::build(&get_test_schema(), 500, [10, 28, 45], 1).unwrap();
-        page.slots = vec![
-            Slot::build(462, 38),
-            Slot::build(350, 22),
-            Slot::build(250, 30),
-        ];
-        page.tuples = vec![
+    pub fn get_test_page() -> Page {
+        let mut page = Page::build(&get_test_schema(), 500, 1).unwrap();
+        page.tuples.insert(
+            (462, 38),
             Tuple::build(&get_test_schema(), &[0; 4], &[2; 33]).unwrap(),
+        );
+        page.tuples.insert(
+            (350, 22),
             Tuple::build(&get_test_schema(), &[1, 0, 0, 0], &[8; 17]).unwrap(),
+        );
+        page.tuples.insert(
+            (250, 30),
             Tuple::build(&get_test_schema(), &[0, 0, 0, 1], &[65; 25]).unwrap(),
-        ];
+        );
         page.header.slots = 3;
         page
     }
 
     fn get_test_page_bytes() -> Vec<u8> {
         vec![
-            244, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 10, 28, 45, 0, 1, 206, 1, 0, 0, 38, 0, 0, 0, 94,
-            1, 0, 0, 22, 0, 0, 0, 250, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            244, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 1, 206, 1, 0, 0, 38, 0, 0, 0, 94, 1, 0, 0, 22,
+            0, 0, 0, 250, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 65,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 65, 65,
             65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-            65, 65, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            65, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-            8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+            8, 8, 8, 8, 8, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-            2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+            2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
         ]
     }
 
     #[test]
     fn as_bytes_should_convert_page() {
-        let bytes = get_test_page().as_bytes();
-        assert_eq!(bytes, get_test_page_bytes());
+        assert_eq!(
+            Page::from_bytes(&get_test_page().as_bytes(), Some(&get_test_schema())).unwrap(),
+            get_test_page()
+        );
     }
 
     #[test]
@@ -248,23 +234,53 @@ mod tests {
     }
 
     #[test]
-    fn get_free_slots_should_return_all_empty_slots() {
+    fn get_free_slots_should_return_empty_slots_case_normal() {
+        let mut page = get_test_page();
+        page.header.page_size += 10;
+        assert_eq!(
+            page.get_free_slots().unwrap(),
+            vec![(38, 212), (280, 70), (372, 90), (500, 10)]
+        );
+    }
+
+    #[test]
+    fn get_free_slots_should_return_all_empty_slots_case_maximum() {
         assert_eq!(
             get_test_page().get_free_slots().unwrap(),
-            vec![
-                Slot {
-                    offset: 41,
-                    length: 209,
-                },
-                Slot {
-                    offset: 280,
-                    length: 70,
-                },
-                Slot {
-                    offset: 372,
-                    length: 90,
-                },
-            ]
+            vec![(38, 212,), (280, 70,), (372, 90,),]
+        );
+    }
+
+    #[test]
+    fn get_free_slots_should_return_empty_slots_case_none() {
+        let mut page = Page::build(&get_test_schema(), 500, 1).unwrap();
+        page.tuples.insert(
+            (22, 478),
+            Tuple::build(&get_test_schema(), &[0, 0, 0, 1], &[65; 25]).unwrap(),
+        );
+        page.header.slots += 1;
+        assert_eq!(page.get_free_slots().unwrap(), vec![]);
+    }
+
+    #[test]
+    fn get_free_slots_should_return_empty_slots_case_minimum() {
+        let mut page = Page::build(&get_test_schema(), 500, 1).unwrap();
+        page.tuples.insert(
+            (38, 103),
+            Tuple::build(&get_test_schema(), &[0, 0, 0, 1], &[65; 25]).unwrap(),
+        );
+        page.tuples.insert(
+            (152, 25),
+            Tuple::build(&get_test_schema(), &[0, 0, 0, 1], &[65; 25]).unwrap(),
+        );
+        page.tuples.insert(
+            (200, 25),
+            Tuple::build(&get_test_schema(), &[0, 0, 0, 1], &[65; 25]).unwrap(),
+        );
+        page.header.slots = 3;
+        assert_eq!(
+            page.get_free_slots().unwrap(),
+            vec![(141, 11), (177, 23), (225, 275)]
         );
     }
 
@@ -274,27 +290,14 @@ mod tests {
         page.insert(&[1, 1, 0, 1], &[1]).unwrap();
         page.insert(&[0, 0, 0, 0], &[32; 33]).unwrap();
         page.insert(&[0, 0, 0, 0], &[18; 33]).unwrap();
-        assert_eq!(page.get_bytes_size(), 500);
+        assert_eq!(page.bytes_size(), 500);
         assert_eq!(
             page,
             Page::from_bytes(&page.as_bytes(), Some(&get_test_schema())).unwrap()
         );
         assert_eq!(
             page.get_free_slots().unwrap(),
-            vec![
-                Slot {
-                    offset: 65,
-                    length: 185,
-                },
-                Slot {
-                    offset: 280,
-                    length: 26,
-                },
-                Slot {
-                    offset: 372,
-                    length: 52,
-                },
-            ]
+            vec![(62, 188), (280, 26), (372, 52)]
         )
     }
 
@@ -313,37 +316,23 @@ mod tests {
         page.insert(&[1, 1, 0, 1], &[1]).unwrap();
         page.insert(&[0, 0, 0, 0], &[32; 33]).unwrap();
         page.insert(&[0, 0, 0, 0], &[18; 33]).unwrap();
-        let count = page
-            .delete_by_slots(&[
-                Slot::build(344, 6),
-                Slot::build(306, 38),
-                Slot::build(424, 38),
-                Slot::build(27, 11),
-            ])
+        page.delete_by_slots(&[(344, 6), (306, 38), (424, 38), (27, 11)])
             .unwrap();
         assert_eq!(page, get_test_page());
-        assert_eq!(count, 3);
     }
 
     #[test]
     fn update_by_slot_should_replace_tuple() {
         let mut page = get_test_page();
-        page.update_by_slot(Slot::build(250, 30), &[1, 1, 0, 1], &[1])
-            .unwrap();
-        assert_eq!(
-            vec![
-                Slot {
-                    offset: 41,
-                    length: 309,
-                },
-                Slot {
-                    offset: 372,
-                    length: 84,
-                },
-            ],
-            page.get_free_slots().unwrap()
-        );
-        assert_eq!(page.tuples.last().unwrap().as_bytes(), [0, 1, 1, 0, 1, 1]);
+        page.update_by_slot((250, 30), &[1, 1, 0, 1], &[1]).unwrap();
+        assert_eq!(page.tuples[&(250, 30)].as_bytes(), [0, 1, 1, 0, 1, 1]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn update_by_slot_should_panic_key_not_found() {
+        let mut page = get_test_page();
+        page.update_by_slot((251, 30), &[1, 1, 0, 1], &[1]).unwrap();
     }
 
     #[test]
@@ -353,30 +342,20 @@ mod tests {
         page.insert(&[0, 0, 0, 0], &[32; 33]).unwrap();
         page.insert(&[0, 0, 0, 0], &[18; 33]).unwrap();
         let tuples = page
-            .read_by_slots(&[
-                Slot::build(344, 6),
-                Slot::build(350, 22),
-                Slot::build(27, 11),
-            ])
+            .read_by_slots(&[(344, 6), (350, 22), (27, 11)])
             .unwrap();
         assert_eq!(
-            tuples,
-            vec![
-                Tuple {
-                    header: TupleHeader {
-                        visibility: 0,
-                        nulls: [1, 0, 0, 0].to_vec(),
-                    },
-                    data: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8].to_vec(),
-                },
-                Tuple {
-                    header: TupleHeader {
-                        visibility: 0,
-                        nulls: [1, 1, 0, 1].to_vec(),
-                    },
-                    data: [1].to_vec(),
-                },
-            ]
+            *tuples[&(344, 6)],
+            Tuple::build(&get_test_schema(), &[1, 1, 0, 1], &[1]).unwrap()
+        );
+        assert_eq!(
+            *tuples[&(350, 22)],
+            Tuple::build(
+                &get_test_schema(),
+                &[1, 0, 0, 0],
+                &[8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]
+            )
+            .unwrap()
         );
     }
 
