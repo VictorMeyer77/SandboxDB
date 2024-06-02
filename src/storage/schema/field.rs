@@ -1,8 +1,10 @@
+use serde::{Deserialize, Serialize};
+
 use crate::storage::schema::_type::Type;
 use crate::storage::schema::encoding::SchemaEncoding;
 use crate::storage::schema::schema_error::SchemaError;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Field {
     name: String,
     _type: Type,

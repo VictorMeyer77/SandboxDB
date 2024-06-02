@@ -1,8 +1,11 @@
-use crate::storage::schema::encoding::SchemaEncoding;
-use crate::storage::schema::schema_error::SchemaError;
 use std::mem;
 
-#[derive(Debug, Clone, PartialEq)]
+use serde::{Deserialize, Serialize};
+
+use crate::storage::schema::encoding::SchemaEncoding;
+use crate::storage::schema::schema_error::SchemaError;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Type {
     BOOLEAN,   // bool
     TINYINT,   // i8
@@ -53,7 +56,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn type_from_str_should_return_enum() {
+    fn from_str_should_return_enum() {
         assert_eq!(Type::from_str("boolean").unwrap(), Type::BOOLEAN);
         assert_eq!(Type::from_str("TinyINT").unwrap(), Type::TINYINT);
         assert_eq!(Type::from_str("SMALLINT").unwrap(), Type::SMALLINT);
@@ -66,7 +69,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn type_from_str_should_return_err_if_not_exist() {
+    fn from_str_should_return_err_if_not_exist() {
         Type::from_str("unknown").unwrap();
     }
 }

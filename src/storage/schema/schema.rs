@@ -1,8 +1,10 @@
+use serde::{Deserialize, Serialize};
+
 use crate::storage::schema::encoding::SchemaEncoding;
 use crate::storage::schema::field::Field;
 use crate::storage::schema::schema_error::SchemaError;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Schema {
     pub fields: Vec<Field>,
 }
@@ -44,7 +46,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn schema_from_str_should_return_struct() {
+    fn from_str_should_return_struct() {
         assert_eq!(
             Schema::from_str("id INT, name STRING, minor BOOLEAN, ").unwrap(),
             Schema {
