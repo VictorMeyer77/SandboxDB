@@ -28,13 +28,16 @@ pub struct Database {
 
 impl Database {
     pub fn build(name: &str, location: &str) -> Result<Database, MetastoreError> {
+        println!("{:?}", location);
+        let location = fs::canonicalize(PathBuf::from(location))?;
+        println!("{:?}", location);
         fs::create_dir_all(&location)?;
         let mut database = Database {
             name: name.to_string(),
-            location: PathBuf::from(location),
+            location: location.clone(),
             table_paths: HashMap::new(),
             tables: HashMap::new(),
-            meta: Meta::build(PathBuf::from(location).join(META_FOLDER))?,
+            meta: Meta::build(location.join(META_FOLDER))?,
         };
         database.save()?;
         Ok(database)
@@ -47,8 +50,7 @@ impl Database {
 
     fn load_tables(&mut self) -> Result<(), MetastoreError> {
         for (name, path) in &self.table_paths {
-            let table = Table::from_file(&path)?;
-            self.tables.insert(name.clone(), table);
+            self.tables.insert(name.clone(), Table::from_file(&path)?);
         }
         Ok(())
     }
@@ -77,7 +79,7 @@ impl Database {
     pub fn delete_table(&mut self, name: &str) -> Result<(), MetastoreError> {
         match self.table_paths.entry(name.to_string()) {
             Entry::Occupied(entry) => {
-                fs::remove_dir_all(entry.get()).unwrap();
+                fs::remove_dir_all(entry.get())?;
                 self.tables.remove(name);
                 self.table_paths.remove(name);
                 Ok(())

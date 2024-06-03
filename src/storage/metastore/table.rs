@@ -26,13 +26,14 @@ pub struct Table {
 
 impl Table {
     pub fn build(name: &str, location: &str, schema: &Schema) -> Result<Table, MetastoreError> {
+        let location = fs::canonicalize(PathBuf::from(location))?;
         fs::create_dir_all(&location)?;
         let mut table = Table {
             name: name.to_string(),
             schema: schema.clone(),
-            location: fs::canonicalize(PathBuf::from(location))?,
+            location: location.clone(),
             file_paths: HashMap::new(),
-            meta: Meta::build(PathBuf::from(location).join(META_FOLDER))?,
+            meta: Meta::build(location.join(META_FOLDER))?,
         };
         table.save()?;
         Ok(table)
