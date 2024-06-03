@@ -1,3 +1,3 @@
 pub mod file;
-mod metastore;
 pub mod schema;
+pub mod tablespace;
