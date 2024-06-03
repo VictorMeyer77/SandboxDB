@@ -157,7 +157,6 @@ mod tests {
 
     #[test]
     fn from_bytes_should_convert_bytes() {
-        println!("{:?}", get_test_file().as_bytes());
         assert_eq!(
             File::from_bytes(&get_test_bytes(), Some(&get_test_schema())).unwrap(),
             get_test_file()

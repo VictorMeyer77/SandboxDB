@@ -131,7 +131,6 @@ pub mod tests {
     fn as_json_should_return_str_struct() {
         let path = init_test_env(TEST_PATH, "as_json");
         let absolute_path = fs::canonicalize(&path).unwrap();
-        println!("{:?}", absolute_path.to_str().unwrap());
         assert_eq!(
             Metastore::build(path.to_str().unwrap())
                 .unwrap()

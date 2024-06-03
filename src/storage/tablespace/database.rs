@@ -133,7 +133,7 @@ mod tests {
                 .unwrap(),
             format!(
                 "{{\"name\":\"test\",\"location\":\"{}\",\"table_paths\":{{}}}}",
-                absolute_path.to_str().unwrap()
+                absolute_path.to_str().unwrap().replace("\\", "\\\\")
             )
         );
         delete_test_env(TEST_PATH, "as_json");
@@ -147,7 +147,7 @@ mod tests {
             Database::build("test", path.to_str().unwrap()).unwrap(),
             Database::from_json(&format!(
                 "{{\"name\":\"test\",\"location\":\"{}\",\"table_paths\":{{}}}}",
-                absolute_path.to_str().unwrap()
+                absolute_path.to_str().unwrap().replace("\\", "\\\\")
             ))
             .unwrap()
         );

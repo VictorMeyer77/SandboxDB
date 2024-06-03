@@ -124,7 +124,7 @@ mod tests {
             Table::build("test", path.to_str().unwrap(), &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN").unwrap()).unwrap()
                 .as_json()
                 .unwrap(),
-            format!("{{\"name\":\"test\",\"schema\":{{\"fields\":[{{\"name\":\"id\",\"_type\":\"BIGINT\"}},{{\"name\":\"cost\",\"_type\":\"FLOAT\"}},{{\"name\":\"available\",\"_type\":\"BOOLEAN\"}}]}},\"location\":\"{}\"}}", absolute_path.to_str().unwrap()),
+            format!("{{\"name\":\"test\",\"schema\":{{\"fields\":[{{\"name\":\"id\",\"_type\":\"BIGINT\"}},{{\"name\":\"cost\",\"_type\":\"FLOAT\"}},{{\"name\":\"available\",\"_type\":\"BOOLEAN\"}}]}},\"location\":\"{}\"}}", absolute_path.to_str().unwrap().replace("\\", "\\\\")),
         );
         delete_test_env(TEST_PATH, "as_json");
     }
@@ -135,7 +135,7 @@ mod tests {
         let absolute_path = fs::canonicalize(&path).unwrap();
         assert_eq!(
             Table::build("test", path.to_str().unwrap(),  &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN").unwrap()).unwrap(),
-            Table::from_json(&format!("{{\"name\":\"test\",\"schema\":{{\"fields\":[{{\"name\":\"id\",\"_type\":\"BIGINT\"}},{{\"name\":\"cost\",\"_type\":\"FLOAT\"}},{{\"name\":\"available\",\"_type\":\"BOOLEAN\"}}]}},\"location\":\"{}\"}}", absolute_path.to_str().unwrap()),
+            Table::from_json(&format!("{{\"name\":\"test\",\"schema\":{{\"fields\":[{{\"name\":\"id\",\"_type\":\"BIGINT\"}},{{\"name\":\"cost\",\"_type\":\"FLOAT\"}},{{\"name\":\"available\",\"_type\":\"BOOLEAN\"}}]}},\"location\":\"{}\"}}", absolute_path.to_str().unwrap().replace("\\", "\\\\")),
             ).unwrap()
         );
         delete_test_env(TEST_PATH, "from_json");
