@@ -1,27 +1,29 @@
 name: ci
-
-on: [ pull_request, push ]
-
+'on':
+  - pull_request
+  - push
 jobs:
-
   test-lib:
-
     name: Test library
-
-    runs-on: ${{ matrix.os }}
-
+    runs-on: '${{ matrix.os }}'
     strategy:
       matrix:
-        os: [ macos-latest, ubuntu-latest, windows-latest ]
-        toolchain: [ stable, nightly ]
-
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+        toolchain:
+          - stable
+          - nightly
     continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
       - name: Setup Rust
-        run: |
-          rustup toolchain add ${{ matrix.toolchain }} --component llvm-tools-preview
+        run: >
+          rustup toolchain add ${{ matrix.toolchain }} --component
+          llvm-tools-preview
+
           rustup override set ${{ matrix.toolchain }}
       - name: Configure cache
         uses: actions/cache@v3
@@ -32,13 +34,13 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: test-${{ runner.os }}-cargo-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.lock') }}
+          key: >-
+            test-${{ runner.os }}-cargo-${{ matrix.toolchain }}-${{
+            hashFiles('**/Cargo.lock') }}
       - name: Test
         run: cargo test --lib
-
-  
   test-coverage:
-    name: Test coverage (gcc-${{ matrix.gcc }}, clang-${{ matrix.clang }})
+    name: 'Test coverage (gcc-${{ matrix.gcc }}, clang-${{ matrix.clang }})'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -50,28 +52,44 @@ jobs:
           - gcc: 11
             clang: 13
     env:
-      CXX: clang++-${{ matrix.clang }}
-      CLANG_CXX: clang++-${{ matrix.clang }}
-      GCC_CXX: g++-${{ matrix.gcc }}
-      GCOV: gcov-${{ matrix.gcc }}
+      CXX: 'clang++-${{ matrix.clang }}'
+      CLANG_CXX: 'clang++-${{ matrix.clang }}'
+      GCC_CXX: 'g++-${{ matrix.gcc }}'
+      GCOV: 'gcov-${{ matrix.gcc }}'
     continue-on-error: true
     steps:
       - name: Prepare C toolchains
-        run: |
+        run: >
           # Add LLVM keys
-          curl -o- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+
+          curl -o- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add
+          -
+
 
           # Add extra APT repos
+
           sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-          sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main'
-          sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-12 main'
-          sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-13 main'
+
+          sudo add-apt-repository 'deb http://apt.llvm.org/focal/
+          llvm-toolchain-focal-11 main'
+
+          sudo add-apt-repository 'deb http://apt.llvm.org/focal/
+          llvm-toolchain-focal-12 main'
+
+          sudo add-apt-repository 'deb http://apt.llvm.org/focal/
+          llvm-toolchain-focal-13 main'
+
 
           # Install toolchains
+
           sudo apt-get update
-          sudo apt-get install -y clang-${{ matrix.clang }} g++-${{ matrix.gcc }}
+
+          sudo apt-get install -y clang-${{ matrix.clang }} g++-${{ matrix.gcc
+          }}
       - name: Checkout repository
         uses: actions/checkout@v3
+      - name: Setup grcov
+        run: cargo install grcov
       - name: Setup Rust
         run: |
           rustup toolchain add nightly --component llvm-tools-preview
@@ -85,15 +103,17 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: test-${{ runner.os }}-cargo-gcc-${{ matrix.gcc }}-clang-${{ matrix.clang }}-${{ hashFiles('**/Cargo.lock') }}
+          key: >-
+            test-${{ runner.os }}-cargo-gcc-${{ matrix.gcc }}-clang-${{
+            matrix.clang }}-${{ hashFiles('**/Cargo.lock') }}
       - name: Build
         env:
-          RUSTFLAGS: -Cinstrument-coverage
+          RUSTFLAGS: '-Cinstrument-coverage'
         run: cargo build
       - name: Test
         env:
           LLVM_PROFILE_FILE: grcov-%p-%m.profraw
-          RUSTFLAGS: -Cinstrument-coverage
+          RUSTFLAGS: '-Cinstrument-coverage'
         run: cargo test
       - name: Generate coverage
         run: |
@@ -128,11 +148,13 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: pre-commit-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: 'pre-commit-${{ runner.os }}-cargo-${{ hashFiles(''**/Cargo.lock'') }}'
       - name: Configure pre-commit cache
         uses: actions/cache@v3
         with:
           path: ~/.cache/pre-commit
-          key: pre-commit-${{ runner.os }}-pre-commit-${{ hashFiles('**/.github/pre-commit-config.yaml') }}
+          key: >-
+            pre-commit-${{ runner.os }}-pre-commit-${{
+            hashFiles('**/.pre-commit-config.yaml') }}
       - name: Run pre-commit
         run: pre-commit run --all-files
