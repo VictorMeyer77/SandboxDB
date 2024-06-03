@@ -97,7 +97,7 @@ jobs:
         run: cargo test
       - name: Generate coverage
         run: |
-          ./target/debug/grcov $(find . -name "grcov-*.profraw" -print) \
+          grcov $(find . -name "grcov-*.profraw" -print) \
             --branch \
             --ignore-not-existing \
             --binary-path ./target/debug/ \
@@ -133,6 +133,6 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pre-commit
-          key: pre-commit-${{ runner.os }}-pre-commit-${{ hashFiles('**/.pre-commit-config.yaml') }}
+          key: pre-commit-${{ runner.os }}-pre-commit-${{ hashFiles('**/.github/pre-commit-config.yaml') }}
       - name: Run pre-commit
         run: pre-commit run --all-files
