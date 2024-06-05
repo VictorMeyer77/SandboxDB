@@ -1,6 +1,6 @@
-mod encoding;
+pub mod encoding;
 pub mod file;
-pub mod file_error;
+pub mod error;
 mod file_header;
 pub mod page;
 mod page_header;

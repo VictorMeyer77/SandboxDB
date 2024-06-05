@@ -1,5 +1,5 @@
 use crate::storage::file::encoding::FileEncoding;
-use crate::storage::file::file_error::FileError;
+use crate::storage::file::error::FileError;
 use crate::storage::schema::schema::Schema;
 
 #[derive(Debug, Clone, PartialEq)]

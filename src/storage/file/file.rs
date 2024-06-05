@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::storage::file::encoding::FileEncoding;
-use crate::storage::file::file_error::FileError;
+use crate::storage::file::error::FileError;
 use crate::storage::file::file_header::FileHeader;
 use crate::storage::file::page::Page;
 use crate::storage::file::page_header::PageHeader;

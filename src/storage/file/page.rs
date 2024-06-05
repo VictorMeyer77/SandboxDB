@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crc32fast::hash;
 
 use crate::storage::file::encoding::FileEncoding;
-use crate::storage::file::file_error::FileError;
+use crate::storage::file::error::FileError;
 use crate::storage::file::page_header::PageHeader;
 use crate::storage::file::tuple::Tuple;
 use crate::storage::schema::schema::Schema;
