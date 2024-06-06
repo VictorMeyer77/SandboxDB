@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::hash::Hash;
-use crate::storage::buffer_pool::catalog::Catalog;
+
 use crate::storage::buffer_pool::error::BufferError;
 use crate::storage::buffer_pool::page_meta::PageMeta;
-
 use crate::storage::file::page::Page;
+use crate::storage::tablespace::catalog::Catalog;
 
 const BUFFER_LIMIT_USED_SIZE: f32 = 0.95;
 
@@ -14,7 +14,6 @@ pub struct BufferPool {
     page_catalogs: HashMap<String, Catalog>,
     pages: HashMap<String, Page>,
 }
-
 
 impl BufferPool {
     pub fn build(size: usize) -> BufferPool {

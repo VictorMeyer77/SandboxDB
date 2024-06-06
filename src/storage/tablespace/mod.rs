@@ -1,3 +1,4 @@
+pub mod catalog;
 pub mod database;
 pub mod encoding;
 pub mod error;

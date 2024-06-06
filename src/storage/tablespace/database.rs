@@ -46,7 +46,7 @@ impl Database {
         Ok(())
     }
 
-    fn load_tables(&mut self) -> Result<(), TablespaceError> {
+    pub fn load_tables(&mut self) -> Result<(), TablespaceError> {
         for (name, path) in &self.table_paths {
             self.tables.insert(name.clone(), Table::from_file(&path)?);
         }
