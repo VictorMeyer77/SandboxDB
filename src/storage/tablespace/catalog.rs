@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use serde::{Deserialize, Serialize};
-
 use crate::storage::tablespace::database::Database;
 use crate::storage::tablespace::encoding::TablespaceEncoding;
 use crate::storage::tablespace::error::TablespaceError;
@@ -12,7 +10,7 @@ use crate::storage::tablespace::table::Table;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Catalog {
     metastore: Metastore,
-    tables: HashMap<String, CatalogTable>,
+    pub tables: HashMap<String, CatalogTable>,
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct CatalogTable {
@@ -36,7 +34,7 @@ impl Catalog {
         Ok(catalog)
     }
 
-    fn refresh(&mut self) -> Result<(), TablespaceError> {
+    pub fn refresh(&mut self) -> Result<(), TablespaceError> {
         self.metastore.load_databases()?;
         for database in self.metastore.list_databases() {
             let mut database = Box::new(self.metastore.databases.get(&database).unwrap().clone());
@@ -61,8 +59,8 @@ mod tests {
     use crate::storage::tablespace::catalog::{Catalog, CatalogTable};
     use crate::storage::tablespace::database::Database;
     use crate::storage::tablespace::encoding::TablespaceEncoding;
-    use crate::storage::tablespace::metastore::Metastore;
     use crate::storage::tablespace::metastore::tests::init_test_env;
+    use crate::storage::tablespace::metastore::Metastore;
     use crate::storage::tablespace::table::Table;
 
     const TEST_PATH: &str = "target/tests/catalog";
@@ -74,23 +72,44 @@ mod tests {
         let schema = Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN").unwrap();
         let mut metastore = Metastore::build(path.to_str().unwrap()).unwrap();
         metastore.new_database("database_01", None).unwrap();
-        let mut database: Database = metastore.databases.get("database_01").unwrap().clone();
-        database.new_table("table_010", None, &schema).unwrap();
-        database.new_table("table_011", None, &schema).unwrap();
+        let mut database_01: Database = metastore.databases.get("database_01").unwrap().clone();
+        database_01.new_table("table_010", None, &schema).unwrap();
+        database_01.new_table("table_011", None, &schema).unwrap();
         metastore.new_database("database_02", None).unwrap();
-        database.new_table("table_020", None, &schema).unwrap();
-        database.new_table("table_021", None, &schema).unwrap();
+        let mut database_02: Database = metastore.databases.get("database_02").unwrap().clone();
+        database_02.new_table("table_020", None, &schema).unwrap();
+        database_02.new_table("table_021", None, &schema).unwrap();
         let catalog: Catalog = Catalog::build(path.to_str().unwrap()).unwrap();
         metastore.load_databases().unwrap();
         assert_eq!(catalog.metastore, metastore);
         assert_eq!(
             *catalog.tables.get("database_01.table_010").unwrap(),
             CatalogTable::build(
-                Box::new(database),
+                Box::new(database_01.clone()),
                 Box::new(Table::from_file(&absolute_path.join("database_01/table_010")).unwrap())
             )
         );
-        println!("{:?}", catalog.metastore);
-        println!("{:?}", catalog.tables);
+        assert_eq!(
+            *catalog.tables.get("database_01.table_011").unwrap(),
+            CatalogTable::build(
+                Box::new(database_01.clone()),
+                Box::new(Table::from_file(&absolute_path.join("database_01/table_011")).unwrap())
+            )
+        );
+        assert_eq!(
+            *catalog.tables.get("database_02.table_020").unwrap(),
+            CatalogTable::build(
+                Box::new(database_02.clone()),
+                Box::new(Table::from_file(&absolute_path.join("database_02/table_020")).unwrap())
+            )
+        );
+        assert_eq!(
+            *catalog.tables.get("database_02.table_021").unwrap(),
+            CatalogTable::build(
+                Box::new(database_02.clone()),
+                Box::new(Table::from_file(&absolute_path.join("database_02/table_021")).unwrap())
+            )
+        );
+        assert_eq!(catalog.tables.len(), 4)
     }
 }

@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::storage::schema::encoding::SchemaEncoding;
-use crate::storage::schema::field::Field;
 use crate::storage::schema::error::SchemaError;
+use crate::storage::schema::field::Field;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Schema {

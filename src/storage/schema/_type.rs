@@ -13,7 +13,7 @@ pub enum Type {
     INT,       // i64
     BIGINT,    // i128
     FLOAT,     // f64
-    TIMESTAMP, // u64
+    TIMESTAMP, // u64  // TODO convert i64
     STRING,    // TODO
 }
 

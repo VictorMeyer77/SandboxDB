@@ -1,11 +1,11 @@
-use std::fs;
-use std::io::{Read, Write};
 use sandboxdb::storage::file::encoding::FileEncoding;
 use sandboxdb::storage::file::file::File;
 use sandboxdb::storage::file::page::Page;
 use sandboxdb::storage::schema::encoding::SchemaEncoding;
 use sandboxdb::storage::schema::schema::Schema;
 use sandboxdb::storage::tablespace::metastore::Metastore;
+use std::fs;
+use std::io::{Read, Write};
 
 fn main() {
     let schema =
@@ -15,11 +15,11 @@ fn main() {
     file.insert_page(&page).unwrap();
 
     use_case_01();
-
 }
 
 fn use_case_01() {
-    let schema = Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP").unwrap();
+    let schema =
+        Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP").unwrap();
     /*let mut metastore = Metastore::build("./metastore01").unwrap();
     let mut database = metastore.new_database("bronze", None).unwrap();
     let mut table = database.new_table("free", None, &schema).unwrap();
@@ -39,7 +39,10 @@ fn use_case_01() {
     println!("{:?}", metastore)*/
     //let f = fs::read_to_string("C:/Users/vmeyer/OneDrive - TF1/Documents/Dev/sandboxdb/metastore01/bronze/free/0").unwrap();
     //let file = File::from_bytes(f.as_bytes(), Some(&schema)).unwrap();
-    let tt = fs::read("C:/Users/vmeyer/OneDrive - TF1/Documents/Dev/sandboxdb/metastore01/bronze/free/0").unwrap();
+    let tt = fs::read(
+        "C:/Users/vmeyer/OneDrive - TF1/Documents/Dev/sandboxdb/metastore01/bronze/free/0",
+    )
+    .unwrap();
     println!("{:?}", tt.len());
     println!("{:?}", tt);
     println!("{:?}", File::from_bytes(&tt, Some(&schema)));
