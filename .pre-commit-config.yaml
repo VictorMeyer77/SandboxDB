@@ -11,11 +11,11 @@ repos:
       - id: trailing-whitespace
       - id: mixed-line-ending
   - repo: 'https://github.com/igorshubovych/markdownlint-cli'
-    rev: v0.31.1
+    rev: v0.41.1
     hooks:
       - id: markdownlint
   - repo: 'https://github.com/DevinR528/cargo-sort'
-    rev: v1.0.7
+    rev: v1.0.9
     hooks:
       - id: cargo-sort
   - repo: meta
@@ -38,7 +38,7 @@ repos:
           - file
           - rust
         entry: >-
-          cargo clippy --bins --tests --examples --all -- -D rust_2018_idioms -D
+          cargo clippy --all-targets --all-features #--bins --tests --examples --all -- -D rust_2018_idioms -D
           warnings
         pass_filenames: false
       - id: test
