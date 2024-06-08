@@ -22,9 +22,8 @@ impl Schema {
 
 impl SchemaEncoding<Schema> for Schema {
     fn from_str(schema: &str) -> Result<Schema, Error> {
-        let fields_str = schema.trim().split_terminator(",");
-        let fields_result: Vec<Result<Field, Error>> =
-            fields_str.map(|field| Field::from_str(field)).collect();
+        let fields_str = schema.trim().split_terminator(',');
+        let fields_result: Vec<Result<Field, Error>> = fields_str.map(Field::from_str).collect();
         if fields_result.iter().any(|res| res.is_err()) {
             let errors: Vec<Error> = fields_result.into_iter().filter_map(Result::err).collect();
             Err(Error::InvalidSchema(format!(
@@ -50,9 +49,9 @@ mod tests {
             Schema::from_str("id INT, name STRING, minor BOOLEAN, ").unwrap(),
             Schema {
                 fields: vec![
-                    Field::build("id".to_string(), Type::INT),
-                    Field::build("name".to_string(), Type::STRING),
-                    Field::build("minor".to_string(), Type::BOOLEAN)
+                    Field::build("id".to_string(), Type::Int),
+                    Field::build("name".to_string(), Type::String),
+                    Field::build("minor".to_string(), Type::Boolean)
                 ],
             },
         );

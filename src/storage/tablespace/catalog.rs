@@ -28,7 +28,7 @@ impl CatalogTable {
 impl Catalog {
     pub fn build(metastore_path: &str) -> Result<Catalog, Error> {
         let mut catalog = Catalog {
-            metastore: Metastore::from_file(&PathBuf::from(metastore_path))?,
+            metastore: Metastore::from_file(PathBuf::from(metastore_path).as_path())?,
             tables: HashMap::new(),
         };
         catalog.refresh()?;
@@ -64,8 +64,8 @@ mod tests {
     use crate::storage::tablespace::catalog::{Catalog, CatalogTable};
     use crate::storage::tablespace::database::Database;
     use crate::storage::tablespace::encoding::TablespaceEncoding;
-    use crate::storage::tablespace::metastore::tests::{delete_test_env, init_test_env};
     use crate::storage::tablespace::metastore::Metastore;
+    use crate::storage::tablespace::metastore::tests::{delete_test_env, init_test_env};
     use crate::storage::tablespace::table::Table;
 
     const TEST_PATH: &str = "target/tests/catalog";

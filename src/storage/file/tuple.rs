@@ -37,7 +37,7 @@ impl FileEncoding<Tuple> for Tuple {
         let schema = schema.ok_or(Error::MissingSchema)?;
         let columns_total = schema.fields.len();
         let nulls = &bytes[1..(columns_total + 1)];
-        Tuple::build(schema, &nulls, &bytes[(columns_total + 1)..])
+        Tuple::build(schema, nulls, &bytes[(columns_total + 1)..])
     }
 }
 

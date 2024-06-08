@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
@@ -91,14 +91,14 @@ impl Table {
     }
 }
 
-impl TablespaceEncoding<'_, Table> for Table {
+impl<'a> TablespaceEncoding<'a, Table> for Table {
     fn from_json(str: &str) -> Result<Table, Error> {
         let mut table: Table = from_str(str)?;
         table.meta = Meta::build(PathBuf::from(&table.location).join(META_FOLDER))?;
         Ok(table)
     }
 
-    fn from_file(path: &PathBuf) -> Result<Table, Error> {
+    fn from_file(path: &Path) -> Result<Table, Error> {
         let file_str = fs::read_to_string(path.join(META_FOLDER).join(TABLE_FILE_NAME))?;
         Table::from_json(&file_str)
     }
@@ -121,7 +121,7 @@ mod tests {
             Table::build("test", path.to_str().unwrap(), &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN").unwrap()).unwrap()
                 .as_json()
                 .unwrap(),
-            format!("{{\"name\":\"test\",\"schema\":{{\"fields\":[{{\"name\":\"id\",\"_type\":\"BIGINT\"}},{{\"name\":\"cost\",\"_type\":\"FLOAT\"}},{{\"name\":\"available\",\"_type\":\"BOOLEAN\"}}]}},\"location\":\"{}\"}}", absolute_path.to_str().unwrap().replace("\\", "\\\\")),
+            format!("{{\"name\":\"test\",\"schema\":{{\"fields\":[{{\"name\":\"id\",\"_type\":\"Bigint\"}},{{\"name\":\"cost\",\"_type\":\"Float\"}},{{\"name\":\"available\",\"_type\":\"Boolean\"}}]}},\"location\":\"{}\"}}", absolute_path.to_str().unwrap().replace("\\", "\\\\")),
         );
         delete_test_env(TEST_PATH, "as_json");
     }
@@ -132,7 +132,7 @@ mod tests {
         let absolute_path = fs::canonicalize(&path).unwrap();
         assert_eq!(
             Table::build("test", path.to_str().unwrap(),  &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN").unwrap()).unwrap(),
-            Table::from_json(&format!("{{\"name\":\"test\",\"schema\":{{\"fields\":[{{\"name\":\"id\",\"_type\":\"BIGINT\"}},{{\"name\":\"cost\",\"_type\":\"FLOAT\"}},{{\"name\":\"available\",\"_type\":\"BOOLEAN\"}}]}},\"location\":\"{}\"}}", absolute_path.to_str().unwrap().replace("\\", "\\\\")),
+            Table::from_json(&format!("{{\"name\":\"test\",\"schema\":{{\"fields\":[{{\"name\":\"id\",\"_type\":\"Bigint\"}},{{\"name\":\"cost\",\"_type\":\"Float\"}},{{\"name\":\"available\",\"_type\":\"Boolean\"}}]}},\"location\":\"{}\"}}", absolute_path.to_str().unwrap().replace("\\", "\\\\")),
             ).unwrap()
         );
         delete_test_env(TEST_PATH, "from_json");

@@ -22,7 +22,7 @@ impl Field {
 
 impl SchemaEncoding<Field> for Field {
     fn from_str(field_str: &str) -> Result<Field, Error> {
-        let name_and_type: Vec<&str> = field_str.trim().split_whitespace().collect();
+        let name_and_type: Vec<&str> = field_str.split_whitespace().collect();
         if name_and_type.len() != 2 {
             Err(Error::InvalidField(format!(
                 "\n- Invalid field syntax. Expected \"column_name column_type\" Actual \"{}\"",
@@ -31,7 +31,7 @@ impl SchemaEncoding<Field> for Field {
         } else {
             Ok(Field {
                 name: name_and_type[0].to_string(),
-                _type: Type::from_str(&name_and_type[1])?,
+                _type: Type::from_str(name_and_type[1])?,
             })
         }
     }
@@ -45,7 +45,7 @@ mod tests {
     fn field_from_str_should_return_struct() {
         assert_eq!(
             Field::from_str("id INT").unwrap(),
-            Field::build("id".to_string(), Type::INT)
+            Field::build("id".to_string(), Type::Int)
         );
     }
 

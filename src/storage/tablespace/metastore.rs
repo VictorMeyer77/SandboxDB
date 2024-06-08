@@ -1,7 +1,7 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
@@ -98,7 +98,7 @@ impl<'a> TablespaceEncoding<'a, Metastore> for Metastore {
         Ok(metastore)
     }
 
-    fn from_file(path: &PathBuf) -> Result<Metastore, Error> {
+    fn from_file(path: &Path) -> Result<Metastore, Error> {
         let file_str = fs::read_to_string(path.join(META_FOLDER).join(METASTORE_FILE_NAME))?;
         Metastore::from_json(&file_str)
     }

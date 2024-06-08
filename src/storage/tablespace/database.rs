@@ -1,7 +1,7 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
@@ -28,7 +28,7 @@ pub struct Database {
 
 impl Database {
     pub fn build(name: &str, location: &str) -> Result<Database, Error> {
-        fs::create_dir_all(&location)?;
+        fs::create_dir_all(location)?;
         let location = fs::canonicalize(PathBuf::from(location))?;
         let mut database = Database {
             name: name.to_string(),
@@ -48,7 +48,7 @@ impl Database {
 
     pub fn load_tables(&mut self) -> Result<(), Error> {
         for (name, path) in &self.table_paths {
-            self.tables.insert(name.clone(), Table::from_file(&path)?);
+            self.tables.insert(name.clone(), Table::from_file(path)?);
         }
         Ok(())
     }
@@ -97,7 +97,7 @@ impl<'a> TablespaceEncoding<'a, Database> for Database {
         database.meta = Meta::build(PathBuf::from(&database.location).join(META_FOLDER))?;
         Ok(database)
     }
-    fn from_file(path: &PathBuf) -> Result<Database, Error> {
+    fn from_file(path: &Path) -> Result<Database, Error> {
         let file_str = fs::read_to_string(path.join(META_FOLDER).join(DATABASE_FILE_NAME))?;
         Database::from_json(&file_str)
     }

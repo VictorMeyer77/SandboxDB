@@ -7,27 +7,27 @@ use crate::storage::schema::error::Error;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Type {
-    BOOLEAN,   // bool
-    TINYINT,   // i8
-    SMALLINT,  // i16
-    INT,       // i64
-    BIGINT,    // i128
-    FLOAT,     // f64
-    TIMESTAMP, // u64  // TODO convert i64
-    STRING,    // TODO
+    Boolean,   // bool
+    Tinyint,   // i8
+    Smallint,  // i16
+    Int,       // i64
+    Bigint,    // i128
+    Float,     // f64
+    Timestamp, // u64  // todo convert i64
+    String,    // todo
 }
 
 impl Type {
     pub fn get_byte_size(&self) -> usize {
         match self {
-            Type::BOOLEAN => mem::size_of::<bool>(),
-            Type::TINYINT => mem::size_of::<i8>(),
-            Type::SMALLINT => mem::size_of::<i16>(),
-            Type::INT => mem::size_of::<i64>(),
-            Type::BIGINT => mem::size_of::<i128>(),
-            Type::FLOAT => mem::size_of::<f64>(),
-            Type::TIMESTAMP => mem::size_of::<u64>(),
-            Type::STRING => 0, // TODO
+            Type::Boolean => mem::size_of::<bool>(),
+            Type::Tinyint => mem::size_of::<i8>(),
+            Type::Smallint => mem::size_of::<i16>(),
+            Type::Int => mem::size_of::<i64>(),
+            Type::Bigint => mem::size_of::<i128>(),
+            Type::Float => mem::size_of::<f64>(),
+            Type::Timestamp => mem::size_of::<u64>(),
+            Type::String => 0, // TODO
         }
     }
 }
@@ -35,14 +35,14 @@ impl Type {
 impl SchemaEncoding<Type> for Type {
     fn from_str(type_str: &str) -> Result<Type, Error> {
         match type_str.to_uppercase().trim() {
-            "BOOLEAN" => Ok(Type::BOOLEAN),
-            "TINYINT" => Ok(Type::TINYINT),
-            "SMALLINT" => Ok(Type::SMALLINT),
-            "INT" => Ok(Type::INT),
-            "BIGINT" => Ok(Type::BIGINT),
-            "FLOAT" => Ok(Type::FLOAT),
-            "TIMESTAMP" => Ok(Type::TIMESTAMP),
-            "STRING" => Ok(Type::STRING),
+            "BOOLEAN" => Ok(Type::Boolean),
+            "TINYINT" => Ok(Type::Tinyint),
+            "SMALLINT" => Ok(Type::Smallint),
+            "INT" => Ok(Type::Int),
+            "BIGINT" => Ok(Type::Bigint),
+            "FLOAT" => Ok(Type::Float),
+            "TIMESTAMP" => Ok(Type::Timestamp),
+            "STRING" => Ok(Type::String),
             _ => Err(Error::InvalidType(format!(
                 "\n- Unknown type \"{}\"",
                 type_str
@@ -57,14 +57,14 @@ mod tests {
 
     #[test]
     fn from_str_should_return_enum() {
-        assert_eq!(Type::from_str("boolean").unwrap(), Type::BOOLEAN);
-        assert_eq!(Type::from_str("TinyINT").unwrap(), Type::TINYINT);
-        assert_eq!(Type::from_str("SMALLINT").unwrap(), Type::SMALLINT);
-        assert_eq!(Type::from_str("int").unwrap(), Type::INT);
-        assert_eq!(Type::from_str("bigint").unwrap(), Type::BIGINT);
-        assert_eq!(Type::from_str("float").unwrap(), Type::FLOAT);
-        assert_eq!(Type::from_str("Timestamp").unwrap(), Type::TIMESTAMP);
-        assert_eq!(Type::from_str("string").unwrap(), Type::STRING);
+        assert_eq!(Type::from_str("boolean").unwrap(), Type::Boolean);
+        assert_eq!(Type::from_str("TinyINT").unwrap(), Type::Tinyint);
+        assert_eq!(Type::from_str("SMALLINT").unwrap(), Type::Smallint);
+        assert_eq!(Type::from_str("int").unwrap(), Type::Int);
+        assert_eq!(Type::from_str("bigint").unwrap(), Type::Bigint);
+        assert_eq!(Type::from_str("float").unwrap(), Type::Float);
+        assert_eq!(Type::from_str("Timestamp").unwrap(), Type::Timestamp);
+        assert_eq!(Type::from_str("string").unwrap(), Type::String);
     }
 
     #[test]

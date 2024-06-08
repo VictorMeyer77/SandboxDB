@@ -74,7 +74,7 @@ impl Page {
 
     pub fn delete_by_slots(&mut self, slots: &[(u32, u32)]) -> Result<(), Error> {
         for slot in slots {
-            if let Some(_) = self.tuples.remove(slot) {
+            if self.tuples.remove(slot).is_some() {
                 self.header.slots -= 1;
             }
         }
@@ -102,7 +102,7 @@ impl Page {
     ) -> Result<HashMap<(u32, u32), &Tuple>, Error> {
         let mut tuples: HashMap<(u32, u32), &Tuple> = HashMap::new();
         for slot in slots {
-            if let Some(tuple) = self.tuples.get(&slot) {
+            if let Some(tuple) = self.tuples.get(slot) {
                 tuples.insert(*slot, tuple);
             }
         }
@@ -153,7 +153,7 @@ impl FileEncoding<Page> for Page {
                 (*offset, *length),
                 Tuple::from_bytes(
                     &bytes[*offset as usize..(offset + length) as usize],
-                    Some(&schema),
+                    Some(schema),
                 )
                 .unwrap(),
             );

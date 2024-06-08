@@ -35,8 +35,8 @@ impl BufferPool {
     fn used_space(&self) -> f32 {
         let used_space: usize = self
             .pages
-            .iter()
-            .map(|(_, page)| page.header.page_size as usize)
+            .values()
+            .map(|page| page.header.page_size as usize)
             .sum();
         used_space as f32 / self.size as f32 * 100.0
     }
@@ -75,7 +75,7 @@ impl BufferPool {
     }
 
     pub fn update_page(&mut self, page_key: &u32, page: Page) -> Result<(), Error> {
-        if let Some(_) = self.pages.get(page_key) {
+        if self.pages.get(page_key).is_some() {
             if self.used_space() + page.header.page_size as f32
                 > BUFFER_LIMIT_USED_SIZE * self.size as f32
             {
@@ -122,8 +122,7 @@ impl BufferPool {
         }
         self.pages
             .iter()
-            .filter(|(k, _)| keys.contains(&k))
-            .map(|(k, v)| (k, v))
+            .filter(|(k, _)| keys.contains(k))
             .collect()
     }
 
@@ -133,16 +132,16 @@ impl BufferPool {
         while size_to_free
             > self
                 .pages
-                .get(&meta_sorted.first().unwrap())
+                .get(meta_sorted.first().unwrap())
                 .unwrap()
                 .header
                 .page_size as f32
         {
             let page_key = meta_sorted.first().unwrap();
-            let page = self.pages.remove(&page_key).unwrap();
+            let page = self.pages.remove(page_key).unwrap();
             size_to_free -= page.header.page_size as f32;
-            self.page_catalogs.remove(&page_key);
-            self.page_metas.remove(&page_key);
+            self.page_catalogs.remove(page_key);
+            self.page_metas.remove(page_key);
             meta_sorted.remove(0);
         }
     }
@@ -153,14 +152,14 @@ impl BufferPool {
         let mut metas: Vec<(u32, (f64, f64))> = self
             .page_metas
             .iter()
-            .map(|(k, v)| (k.clone(), (v.last_access as f64, v.count_access as f64)))
+            .map(|(k, v)| (*k, (v.last_access as f64, v.count_access as f64)))
             .collect();
         metas.sort_by(|(_, a), (_, b)| {
             (a.0 / max_last_access + a.1 / max_count_access)
                 .partial_cmp(&(b.0 / max_last_access + b.1 / max_count_access))
                 .unwrap_or(Ordering::Equal)
         });
-        metas.iter().map(|(k, _)| k.clone()).collect()
+        metas.iter().map(|(k, _)| *k).collect()
     }
 
     fn max_last_access(&self) -> usize {
@@ -189,8 +188,8 @@ mod tests {
 
     use crate::storage::schema::encoding::SchemaEncoding;
     use crate::storage::schema::schema::Schema;
-    use crate::storage::tablespace::metastore::tests::{delete_test_env, init_test_env};
     use crate::storage::tablespace::metastore::Metastore;
+    use crate::storage::tablespace::metastore::tests::{delete_test_env, init_test_env};
 
     use super::*;
 

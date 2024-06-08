@@ -54,7 +54,7 @@ impl File {
     pub fn select_by_indexes(&mut self, indexes: &[u32]) -> Result<HashMap<u32, &Page>, Error> {
         let mut pages: HashMap<u32, &Page> = HashMap::new();
         for index in indexes {
-            if let Some(page) = self.pages.get(&index) {
+            if let Some(page) = self.pages.get(index) {
                 pages.insert(*index, page);
             }
         }
@@ -77,11 +77,9 @@ impl FileEncoding<File> for File {
         let header = FileHeader::from_bytes(&bytes[..13], None)?;
         let page_size = PageHeader::from_bytes(&bytes[13..27], None)?.page_size as usize;
         let chunks = bytes[13..].chunks(page_size);
-        let mut index: u32 = 0;
-        for chunk in chunks {
+        for (index, chunk) in (0_u32..).zip(chunks) {
             let page = Page::from_bytes(chunk, schema)?;
             pages.insert(index, page);
-            index += 1;
         }
         Ok(File { header, pages })
     }
