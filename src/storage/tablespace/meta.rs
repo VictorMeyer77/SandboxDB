@@ -17,7 +17,7 @@ impl Meta {
     pub fn build(location: PathBuf) -> Result<Meta, Error> {
         fs::create_dir_all(&location)?;
         let mut meta = Meta {
-            location: fs::canonicalize(PathBuf::from(location))?,
+            location: fs::canonicalize(location)?,
             meta_paths: HashMap::new(),
         };
         meta.load_meta_paths()?;

@@ -1,5 +1,5 @@
 use crate::storage::file::error::Error;
-use crate::storage::schema::schema::Schema;
+use crate::storage::schema::Schema;
 
 pub trait FileEncoding<T> {
     fn as_bytes(&self) -> Vec<u8>;

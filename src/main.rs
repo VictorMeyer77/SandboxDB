@@ -1,12 +1,12 @@
 use std::fs;
 use std::io::Write;
 
-use sandboxdb::storage::buffer_pool::buffer_pool::BufferPool;
+use sandboxdb::storage::buffer_pool::BufferPool;
 use sandboxdb::storage::file::encoding::FileEncoding;
-use sandboxdb::storage::file::file::File;
 use sandboxdb::storage::file::page::Page;
+use sandboxdb::storage::file::File;
 use sandboxdb::storage::schema::encoding::SchemaEncoding;
-use sandboxdb::storage::schema::schema::Schema;
+use sandboxdb::storage::schema::Schema;
 use sandboxdb::storage::tablespace::metastore::Metastore;
 
 fn main() {

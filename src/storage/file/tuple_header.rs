@@ -1,6 +1,6 @@
 use crate::storage::file::encoding::FileEncoding;
 use crate::storage::file::error::Error;
-use crate::storage::schema::schema::Schema;
+use crate::storage::schema::Schema;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TupleHeader {

@@ -26,7 +26,7 @@ pub struct Metastore {
 
 impl Metastore {
     pub fn build(location: &str) -> Result<Metastore, Error> {
-        fs::create_dir_all(&location)?;
+        fs::create_dir_all(location)?;
         let location = fs::canonicalize(PathBuf::from(location))?;
         let mut metastore = Metastore {
             location: location.clone(),
@@ -46,7 +46,7 @@ impl Metastore {
     pub fn load_databases(&mut self) -> Result<(), Error> {
         for (name, path) in &self.database_paths {
             self.databases
-                .insert(name.clone(), Database::from_file(&path)?);
+                .insert(name.clone(), Database::from_file(path)?);
         }
         Ok(())
     }
@@ -134,7 +134,7 @@ pub mod tests {
                 .unwrap(),
             format!(
                 "{{\"location\":\"{}\",\"database_paths\":{{}}}}",
-                absolute_path.to_str().unwrap().replace("\\", "\\\\")
+                absolute_path.to_str().unwrap().replace('\\', "\\\\")
             )
         );
         delete_test_env(TEST_PATH, "as_json");
@@ -148,7 +148,7 @@ pub mod tests {
             Metastore::build(path.to_str().unwrap()).unwrap(),
             Metastore::from_json(&format!(
                 "{{\"location\":\"{}\",\"database_paths\":{{}}}}",
-                absolute_path.to_str().unwrap().replace("\\", "\\\\")
+                absolute_path.to_str().unwrap().replace('\\', "\\\\")
             ))
             .unwrap()
         );

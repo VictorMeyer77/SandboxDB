@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 
-use crate::storage::schema::schema::Schema;
+use crate::storage::schema::Schema;
 use crate::storage::tablespace::encoding::TablespaceEncoding;
 use crate::storage::tablespace::error::Error;
 use crate::storage::tablespace::meta::Meta;
@@ -109,7 +109,7 @@ mod tests {
     use std::path::Path;
 
     use crate::storage::schema::encoding::SchemaEncoding;
-    use crate::storage::schema::schema::Schema;
+    use crate::storage::schema::Schema;
     use crate::storage::tablespace::database::Database;
     use crate::storage::tablespace::encoding::TablespaceEncoding;
     use crate::storage::tablespace::metastore::tests::{delete_test_env, init_test_env};
@@ -127,7 +127,7 @@ mod tests {
                 .unwrap(),
             format!(
                 "{{\"name\":\"test\",\"location\":\"{}\",\"table_paths\":{{}}}}",
-                absolute_path.to_str().unwrap().replace("\\", "\\\\")
+                absolute_path.to_str().unwrap().replace('\\', "\\\\")
             )
         );
         delete_test_env(TEST_PATH, "as_json");
@@ -141,7 +141,7 @@ mod tests {
             Database::build("test", path.to_str().unwrap()).unwrap(),
             Database::from_json(&format!(
                 "{{\"name\":\"test\",\"location\":\"{}\",\"table_paths\":{{}}}}",
-                absolute_path.to_str().unwrap().replace("\\", "\\\\")
+                absolute_path.to_str().unwrap().replace('\\', "\\\\")
             ))
             .unwrap()
         );
