@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::storage::tablespace::error::TablespaceError;
+use crate::storage::tablespace::error::Error;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct Meta {
@@ -14,7 +14,7 @@ pub struct Meta {
 }
 
 impl Meta {
-    pub fn build(location: PathBuf) -> Result<Meta, TablespaceError> {
+    pub fn build(location: PathBuf) -> Result<Meta, Error> {
         fs::create_dir_all(&location)?;
         let mut meta = Meta {
             location: fs::canonicalize(PathBuf::from(location))?,
@@ -24,7 +24,7 @@ impl Meta {
         Ok(meta)
     }
 
-    fn load_meta_paths(&mut self) -> Result<(), TablespaceError> {
+    fn load_meta_paths(&mut self) -> Result<(), Error> {
         for entry in fs::read_dir(&self.location)? {
             let path = entry?.path();
             if path.is_file() {
@@ -37,7 +37,7 @@ impl Meta {
         Ok(())
     }
 
-    pub fn save(&mut self, name: &str, meta_str: &str) -> Result<(), TablespaceError> {
+    pub fn save(&mut self, name: &str, meta_str: &str) -> Result<(), Error> {
         let mut file = fs::File::create(self.location.join(name))?;
         file.write_all(meta_str.as_bytes())?;
         self.meta_paths
@@ -45,20 +45,17 @@ impl Meta {
         Ok(())
     }
 
-    pub fn load(&self, name: &str) -> Result<String, TablespaceError> {
+    pub fn load(&self, name: &str) -> Result<String, Error> {
         Ok(fs::read_to_string(self.meta_paths.get(name).ok_or(
-            TablespaceError::ObjectNotFound("Meta".to_string(), name.to_string()),
+            Error::ObjectNotFound("Meta".to_string(), name.to_string()),
         )?)?)
     }
 
-    pub fn delete(&mut self, name: &str) -> Result<(), TablespaceError> {
+    pub fn delete(&mut self, name: &str) -> Result<(), Error> {
         fs::remove_file(
             self.meta_paths
                 .get(name)
-                .ok_or(TablespaceError::ObjectNotFound(
-                    "Meta".to_string(),
-                    name.to_string(),
-                ))?,
+                .ok_or(Error::ObjectNotFound("Meta".to_string(), name.to_string()))?,
         )?;
         self.meta_paths.remove(name);
         Ok(())

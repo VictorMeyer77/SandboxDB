@@ -7,7 +7,7 @@ use serde_json::from_str;
 
 use crate::storage::schema::schema::Schema;
 use crate::storage::tablespace::encoding::TablespaceEncoding;
-use crate::storage::tablespace::error::TablespaceError;
+use crate::storage::tablespace::error::Error;
 use crate::storage::tablespace::meta::Meta;
 
 const META_FOLDER: &str = ".meta";
@@ -25,7 +25,7 @@ pub struct Table {
 }
 
 impl Table {
-    pub fn build(name: &str, location: &str, schema: &Schema) -> Result<Table, TablespaceError> {
+    pub fn build(name: &str, location: &str, schema: &Schema) -> Result<Table, Error> {
         fs::create_dir_all(&location)?;
         let location = fs::canonicalize(PathBuf::from(location))?;
         let mut table = Table {
@@ -39,12 +39,12 @@ impl Table {
         Ok(table)
     }
 
-    fn save(&mut self) -> Result<(), TablespaceError> {
+    fn save(&mut self) -> Result<(), Error> {
         self.meta.save(TABLE_FILE_NAME, &self.as_json()?)?;
         Ok(())
     }
 
-    pub fn load_file_paths(&mut self) -> Result<(), TablespaceError> {
+    pub fn load_file_paths(&mut self) -> Result<(), Error> {
         for entry in fs::read_dir(&self.location)? {
             let path = entry?.path();
             if path.is_file() {
@@ -57,7 +57,7 @@ impl Table {
         Ok(())
     }
 
-    pub fn new_file(&mut self) -> Result<(String, PathBuf), TablespaceError> {
+    pub fn new_file(&mut self) -> Result<(String, PathBuf), Error> {
         let file_name = self.generate_file_name();
         let file_path = self.location.join(&file_name);
         fs::File::create(&file_path)?;
@@ -67,14 +67,11 @@ impl Table {
         Ok((file_name, file_path))
     }
 
-    pub fn delete_file(&mut self, name: &str) -> Result<(), TablespaceError> {
+    pub fn delete_file(&mut self, name: &str) -> Result<(), Error> {
         fs::remove_file(
             self.file_paths
                 .get(name)
-                .ok_or(TablespaceError::ObjectNotFound(
-                    "File".to_string(),
-                    name.to_string(),
-                ))?,
+                .ok_or(Error::ObjectNotFound("File".to_string(), name.to_string()))?,
         )?;
         self.file_paths.remove(name);
         self.save()?;
@@ -95,13 +92,13 @@ impl Table {
 }
 
 impl TablespaceEncoding<'_, Table> for Table {
-    fn from_json(str: &str) -> Result<Table, TablespaceError> {
+    fn from_json(str: &str) -> Result<Table, Error> {
         let mut table: Table = from_str(str)?;
         table.meta = Meta::build(PathBuf::from(&table.location).join(META_FOLDER))?;
         Ok(table)
     }
 
-    fn from_file(path: &PathBuf) -> Result<Table, TablespaceError> {
+    fn from_file(path: &PathBuf) -> Result<Table, Error> {
         let file_str = fs::read_to_string(path.join(META_FOLDER).join(TABLE_FILE_NAME))?;
         Table::from_json(&file_str)
     }

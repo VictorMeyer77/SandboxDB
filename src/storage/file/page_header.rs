@@ -1,5 +1,5 @@
 use crate::storage::file::encoding::FileEncoding;
-use crate::storage::file::error::FileError;
+use crate::storage::file::error::Error;
 use crate::storage::schema::schema::Schema;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -34,7 +34,7 @@ impl FileEncoding<PageHeader> for PageHeader {
         concat_bytes
     }
 
-    fn from_bytes(bytes: &[u8], _schema: Option<&Schema>) -> Result<PageHeader, FileError> {
+    fn from_bytes(bytes: &[u8], _schema: Option<&Schema>) -> Result<PageHeader, Error> {
         Ok(PageHeader {
             page_size: u32::from_le_bytes(bytes[0..4].try_into().unwrap()),
             slots: u32::from_le_bytes(bytes[4..8].try_into().unwrap()),

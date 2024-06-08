@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crc32fast::hash;
 
 use crate::storage::file::encoding::FileEncoding;
-use crate::storage::file::error::FileError;
+use crate::storage::file::error::Error;
 use crate::storage::file::page_header::PageHeader;
 use crate::storage::file::tuple::Tuple;
 use crate::storage::schema::schema::Schema;
@@ -16,7 +16,7 @@ pub struct Page {
 }
 
 impl Page {
-    pub fn build(schema: &Schema, page_size: u32, compression: u8) -> Result<Page, FileError> {
+    pub fn build(schema: &Schema, page_size: u32, compression: u8) -> Result<Page, Error> {
         let header = PageHeader::build(page_size, compression);
         Ok(Page {
             schema: schema.clone(),
@@ -25,7 +25,7 @@ impl Page {
         })
     }
 
-    fn get_free_slots(&self) -> Result<Vec<(u32, u32)>, FileError> {
+    fn get_free_slots(&self) -> Result<Vec<(u32, u32)>, Error> {
         let slots: Vec<(u32, u32)> = self.tuples.keys().cloned().collect();
         let mut slots: Vec<u32> = slots
             .into_iter()
@@ -48,7 +48,7 @@ impl Page {
         Ok(free_slots)
     }
 
-    pub fn insert(&mut self, nulls: &[u8], data: &[u8]) -> Result<(), FileError> {
+    pub fn insert(&mut self, nulls: &[u8], data: &[u8]) -> Result<(), Error> {
         let tuple = Tuple::build(&self.schema, nulls, data)?;
         let tuple_size = tuple.bytes_size() as u32;
         let mut free_slots: Vec<(u32, u32)> = self
@@ -57,7 +57,7 @@ impl Page {
             .filter(|(_, length)| *length > tuple_size)
             .collect();
         if free_slots.is_empty() {
-            Err(FileError::PageOverflow(
+            Err(Error::PageOverflow(
                 "Insertion failed, no more place on this page.".to_string(),
             ))
         } else {
@@ -72,7 +72,7 @@ impl Page {
         }
     }
 
-    pub fn delete_by_slots(&mut self, slots: &[(u32, u32)]) -> Result<(), FileError> {
+    pub fn delete_by_slots(&mut self, slots: &[(u32, u32)]) -> Result<(), Error> {
         for slot in slots {
             if let Some(_) = self.tuples.remove(slot) {
                 self.header.slots -= 1;
@@ -86,12 +86,12 @@ impl Page {
         slot: (u32, u32),
         nulls: &[u8],
         data: &[u8],
-    ) -> Result<(), FileError> {
+    ) -> Result<(), Error> {
         match self
             .tuples
             .insert(slot, Tuple::build(&self.schema, nulls, data)?)
         {
-            None => Err(FileError::InvalidSlot(slot)),
+            None => Err(Error::InvalidSlot(slot)),
             Some(_) => Ok(()),
         }
     }
@@ -99,7 +99,7 @@ impl Page {
     pub fn read_by_slots(
         &self,
         slots: &[(u32, u32)],
-    ) -> Result<HashMap<(u32, u32), &Tuple>, FileError> {
+    ) -> Result<HashMap<(u32, u32), &Tuple>, Error> {
         let mut tuples: HashMap<(u32, u32), &Tuple> = HashMap::new();
         for slot in slots {
             if let Some(tuple) = self.tuples.get(&slot) {
@@ -135,8 +135,8 @@ impl FileEncoding<Page> for Page {
         concat_bytes
     }
 
-    fn from_bytes(bytes: &[u8], schema: Option<&Schema>) -> Result<Page, FileError> {
-        let schema = schema.ok_or(FileError::MissingSchema)?;
+    fn from_bytes(bytes: &[u8], schema: Option<&Schema>) -> Result<Page, Error> {
+        let schema = schema.ok_or(Error::MissingSchema)?;
         let header = PageHeader::from_bytes(&bytes[..14], None)?;
         let slots: Vec<(u32, u32)> = bytes[14..(14 + (header.slots as usize * 8))]
             .chunks(8)

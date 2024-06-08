@@ -1,44 +1,43 @@
-use std::error::Error;
 use std::fmt;
 
-pub enum TablespaceError {
+pub enum Error {
     SerdeJson(serde_json::Error),
     FileError(std::io::Error),
     ObjectExists(String, String),
     ObjectNotFound(String, String),
 }
 
-impl fmt::Display for TablespaceError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TablespaceError::SerdeJson(ref err) => write!(f, "Serde Json error: {}.", err),
-            TablespaceError::FileError(ref err) => write!(f, "File error: {}.", err),
-            TablespaceError::ObjectExists(ref object, ref name) => {
+            Error::SerdeJson(ref err) => write!(f, "Serde Json error: {}.", err),
+            Error::FileError(ref err) => write!(f, "File error: {}.", err),
+            Error::ObjectExists(ref object, ref name) => {
                 write!(f, "{} {} already exists.", object, name)
             }
-            TablespaceError::ObjectNotFound(ref object, ref name) => {
+            Error::ObjectNotFound(ref object, ref name) => {
                 write!(f, "{} {} not found.", object, name)
             }
         }
     }
 }
 
-impl fmt::Debug for TablespaceError {
+impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self)
     }
 }
 
-impl Error for TablespaceError {}
+impl std::error::Error for Error {}
 
-impl From<serde_json::Error> for TablespaceError {
-    fn from(value: serde_json::Error) -> TablespaceError {
-        TablespaceError::SerdeJson(value)
+impl From<serde_json::Error> for Error {
+    fn from(value: serde_json::Error) -> Error {
+        Error::SerdeJson(value)
     }
 }
 
-impl From<std::io::Error> for TablespaceError {
+impl From<std::io::Error> for Error {
     fn from(value: std::io::Error) -> Self {
-        TablespaceError::FileError(value)
+        Error::FileError(value)
     }
 }

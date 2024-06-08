@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::storage::file::encoding::FileEncoding;
-use crate::storage::file::error::FileError;
+use crate::storage::file::error::Error;
 use crate::storage::file::file_header::FileHeader;
 use crate::storage::file::page::Page;
 use crate::storage::file::page_header::PageHeader;
@@ -21,12 +21,12 @@ impl File {
         }
     }
 
-    pub fn insert_page(&mut self, page: &Page) -> Result<(), FileError> {
+    pub fn insert_page(&mut self, page: &Page) -> Result<(), Error> {
         let page_index = self.pages.len() as u32;
         if self.header.bytes_size() as u32 + (page_index + 1) * page.header.page_size
             > self.header.file_size
         {
-            Err(FileError::PageOverflow(
+            Err(Error::PageOverflow(
                 "Insertion failed, no more place on this file.".to_string(),
             ))
         } else {
@@ -35,23 +35,23 @@ impl File {
         }
     }
 
-    pub fn delete_by_index(&mut self, index: u32) -> Result<(), FileError> {
+    pub fn delete_by_index(&mut self, index: u32) -> Result<(), Error> {
         self.pages
             .remove(&index)
-            .ok_or(FileError::InvalidIndex(index))?;
+            .ok_or(Error::InvalidIndex(index))?;
         Ok(())
     }
 
-    pub fn update_by_index(&mut self, index: u32, page: &Page) -> Result<(), FileError> {
+    pub fn update_by_index(&mut self, index: u32, page: &Page) -> Result<(), Error> {
         if let Some(value) = self.pages.get_mut(&index) {
             *value = page.clone();
             Ok(())
         } else {
-            Err(FileError::InvalidIndex(index))
+            Err(Error::InvalidIndex(index))
         }
     }
 
-    pub fn select_by_indexes(&mut self, indexes: &[u32]) -> Result<HashMap<u32, &Page>, FileError> {
+    pub fn select_by_indexes(&mut self, indexes: &[u32]) -> Result<HashMap<u32, &Page>, Error> {
         let mut pages: HashMap<u32, &Page> = HashMap::new();
         for index in indexes {
             if let Some(page) = self.pages.get(&index) {
@@ -72,7 +72,7 @@ impl FileEncoding<File> for File {
         concat_bytes
     }
 
-    fn from_bytes(bytes: &[u8], schema: Option<&Schema>) -> Result<File, FileError> {
+    fn from_bytes(bytes: &[u8], schema: Option<&Schema>) -> Result<File, Error> {
         let mut pages: HashMap<u32, Page> = HashMap::new();
         let header = FileHeader::from_bytes(&bytes[..13], None)?;
         let page_size = PageHeader::from_bytes(&bytes[13..27], None)?.page_size as usize;

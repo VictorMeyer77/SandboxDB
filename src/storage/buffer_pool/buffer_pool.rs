@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use crc32fast::hash;
 
-use crate::storage::buffer_pool::error::BufferError;
+use crate::storage::buffer_pool::error::Error;
 use crate::storage::buffer_pool::page_meta::PageMeta;
 use crate::storage::file::page::Page;
 use crate::storage::tablespace::catalog::{Catalog, CatalogTable};
@@ -47,7 +47,7 @@ impl BufferPool {
         catalog_id: &str,
         file_id: &str,
         page_id: u32,
-    ) -> Result<u32, BufferError> {
+    ) -> Result<u32, Error> {
         if !self.catalog.tables.contains_key(catalog_id) {
             self.catalog.refresh()?;
         }
@@ -74,7 +74,7 @@ impl BufferPool {
         hash(&key)
     }
 
-    pub fn update_page(&mut self, page_key: &u32, page: Page) -> Result<(), BufferError> {
+    pub fn update_page(&mut self, page_key: &u32, page: Page) -> Result<(), Error> {
         if let Some(_) = self.pages.get(page_key) {
             if self.used_space() + page.header.page_size as f32
                 > BUFFER_LIMIT_USED_SIZE * self.size as f32
@@ -88,25 +88,25 @@ impl BufferPool {
                 .increment_access();
             Ok(())
         } else {
-            Err(BufferError::UnknownTableKey(*page_key))
+            Err(Error::UnknownTableKey(*page_key))
         }
     }
 
-    pub fn get_page(&mut self, key: &u32) -> Result<&Page, BufferError> {
+    pub fn get_page(&mut self, key: &u32) -> Result<&Page, Error> {
         if let Some(page) = self.pages.get(key) {
             self.page_metas.get_mut(key).unwrap().increment_access();
             Ok(page)
         } else {
-            Err(BufferError::UnknownTableKey(*key))
+            Err(Error::UnknownTableKey(*key))
         }
     }
 
-    pub fn get_page_catalog(&mut self, key: &u32) -> Result<Rc<CatalogTable>, BufferError> {
+    pub fn get_page_catalog(&mut self, key: &u32) -> Result<Rc<CatalogTable>, Error> {
         if let Some(page_catalog) = self.page_catalogs.get(key) {
             self.page_metas.get_mut(key).unwrap().increment_access();
             Ok(Rc::clone(page_catalog))
         } else {
-            Err(BufferError::UnknownTableKey(*key))
+            Err(Error::UnknownTableKey(*key))
         }
     }
 
@@ -189,8 +189,8 @@ mod tests {
 
     use crate::storage::schema::encoding::SchemaEncoding;
     use crate::storage::schema::schema::Schema;
-    use crate::storage::tablespace::metastore::Metastore;
     use crate::storage::tablespace::metastore::tests::{delete_test_env, init_test_env};
+    use crate::storage::tablespace::metastore::Metastore;
 
     use super::*;
 

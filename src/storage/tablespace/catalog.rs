@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use crate::storage::tablespace::database::Database;
 use crate::storage::tablespace::encoding::TablespaceEncoding;
-use crate::storage::tablespace::error::TablespaceError;
+use crate::storage::tablespace::error::Error;
 use crate::storage::tablespace::metastore::Metastore;
 use crate::storage::tablespace::table::Table;
 
@@ -26,7 +26,7 @@ impl CatalogTable {
 }
 
 impl Catalog {
-    pub fn build(metastore_path: &str) -> Result<Catalog, TablespaceError> {
+    pub fn build(metastore_path: &str) -> Result<Catalog, Error> {
         let mut catalog = Catalog {
             metastore: Metastore::from_file(&PathBuf::from(metastore_path))?,
             tables: HashMap::new(),
@@ -35,7 +35,7 @@ impl Catalog {
         Ok(catalog)
     }
 
-    pub fn refresh(&mut self) -> Result<(), TablespaceError> {
+    pub fn refresh(&mut self) -> Result<(), Error> {
         self.metastore = Metastore::from_file(&self.metastore.location)?;
         self.metastore.load_databases()?;
         for database in self.metastore.list_databases() {
@@ -64,8 +64,8 @@ mod tests {
     use crate::storage::tablespace::catalog::{Catalog, CatalogTable};
     use crate::storage::tablespace::database::Database;
     use crate::storage::tablespace::encoding::TablespaceEncoding;
-    use crate::storage::tablespace::metastore::Metastore;
     use crate::storage::tablespace::metastore::tests::{delete_test_env, init_test_env};
+    use crate::storage::tablespace::metastore::Metastore;
     use crate::storage::tablespace::table::Table;
 
     const TEST_PATH: &str = "target/tests/catalog";

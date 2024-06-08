@@ -3,7 +3,7 @@ use std::mem;
 use serde::{Deserialize, Serialize};
 
 use crate::storage::schema::encoding::SchemaEncoding;
-use crate::storage::schema::error::SchemaError;
+use crate::storage::schema::error::Error;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Type {
@@ -33,7 +33,7 @@ impl Type {
 }
 
 impl SchemaEncoding<Type> for Type {
-    fn from_str(type_str: &str) -> Result<Type, SchemaError> {
+    fn from_str(type_str: &str) -> Result<Type, Error> {
         match type_str.to_uppercase().trim() {
             "BOOLEAN" => Ok(Type::BOOLEAN),
             "TINYINT" => Ok(Type::TINYINT),
@@ -43,7 +43,7 @@ impl SchemaEncoding<Type> for Type {
             "FLOAT" => Ok(Type::FLOAT),
             "TIMESTAMP" => Ok(Type::TIMESTAMP),
             "STRING" => Ok(Type::STRING),
-            _ => Err(SchemaError::InvalidType(format!(
+            _ => Err(Error::InvalidType(format!(
                 "\n- Unknown type \"{}\"",
                 type_str
             ))),

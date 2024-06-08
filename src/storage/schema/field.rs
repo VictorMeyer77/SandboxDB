@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::storage::schema::_type::Type;
 use crate::storage::schema::encoding::SchemaEncoding;
-use crate::storage::schema::error::SchemaError;
+use crate::storage::schema::error::Error;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Field {
@@ -21,10 +21,10 @@ impl Field {
 }
 
 impl SchemaEncoding<Field> for Field {
-    fn from_str(field_str: &str) -> Result<Field, SchemaError> {
+    fn from_str(field_str: &str) -> Result<Field, Error> {
         let name_and_type: Vec<&str> = field_str.trim().split_whitespace().collect();
         if name_and_type.len() != 2 {
-            Err(SchemaError::InvalidField(format!(
+            Err(Error::InvalidField(format!(
                 "\n- Invalid field syntax. Expected \"column_name column_type\" Actual \"{}\"",
                 field_str
             )))

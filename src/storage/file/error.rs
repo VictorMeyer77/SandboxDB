@@ -1,8 +1,7 @@
-use std::error::Error;
 use std::fmt;
 
 #[derive(Clone, PartialEq)]
-pub enum FileError {
+pub enum Error {
     PageOverflow(String),
     InvalidIndex(u32),
     InvalidSlot((u32, u32)),
@@ -10,22 +9,22 @@ pub enum FileError {
     MissingSchema,
 }
 
-impl fmt::Display for FileError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            FileError::PageOverflow(ref msg) => write!(f, "{}", msg),
-            FileError::InvalidIndex(ref msg) => write!(f, "{:?} not found", msg),
-            FileError::InvalidSlot(ref msg) => write!(f, "{:?} not found", msg),
-            FileError::CorruptedTuple(ref msg) => write!(f, "{}", msg),
-            FileError::MissingSchema => write!(f, "Need a schema to read these bytes"),
+            Error::PageOverflow(ref msg) => write!(f, "{}", msg),
+            Error::InvalidIndex(ref msg) => write!(f, "{:?} not found", msg),
+            Error::InvalidSlot(ref msg) => write!(f, "{:?} not found", msg),
+            Error::CorruptedTuple(ref msg) => write!(f, "{}", msg),
+            Error::MissingSchema => write!(f, "Need a schema to read these bytes"),
         }
     }
 }
 
-impl fmt::Debug for FileError {
+impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self)
     }
 }
 
-impl Error for FileError {}
+impl std::error::Error for Error {}

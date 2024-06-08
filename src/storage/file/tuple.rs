@@ -1,5 +1,5 @@
 use crate::storage::file::encoding::FileEncoding;
-use crate::storage::file::error::FileError;
+use crate::storage::file::error::Error;
 use crate::storage::file::tuple_header::TupleHeader;
 use crate::storage::schema::schema::Schema;
 
@@ -10,9 +10,9 @@ pub struct Tuple {
 }
 
 impl Tuple {
-    pub fn build(schema: &Schema, nulls: &[u8], data: &[u8]) -> Result<Tuple, FileError> {
+    pub fn build(schema: &Schema, nulls: &[u8], data: &[u8]) -> Result<Tuple, Error> {
         if schema.tuple_size(Some(nulls)) != data.len() {
-            Err(FileError::CorruptedTuple(format!(
+            Err(Error::CorruptedTuple(format!(
                 "Data {:?} with nulls {:?} don't match with given schema {:?}",
                 data, nulls, schema
             )))
@@ -33,8 +33,8 @@ impl FileEncoding<Tuple> for Tuple {
         concat_bytes
     }
 
-    fn from_bytes(bytes: &[u8], schema: Option<&Schema>) -> Result<Tuple, FileError> {
-        let schema = schema.ok_or(FileError::MissingSchema)?;
+    fn from_bytes(bytes: &[u8], schema: Option<&Schema>) -> Result<Tuple, Error> {
+        let schema = schema.ok_or(Error::MissingSchema)?;
         let columns_total = schema.fields.len();
         let nulls = &bytes[1..(columns_total + 1)];
         Tuple::build(schema, &nulls, &bytes[(columns_total + 1)..])

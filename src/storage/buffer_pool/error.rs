@@ -1,34 +1,33 @@
-use std::error::Error;
 use std::fmt;
 
-use crate::storage::tablespace::error::TablespaceError;
+use crate::storage::tablespace;
 
-pub enum BufferError {
+pub enum Error {
     UnknownTableKey(u32),
-    Tablespace(TablespaceError),
+    Tablespace(tablespace::error::Error),
 }
 
-impl fmt::Display for BufferError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            BufferError::UnknownTableKey(ref msg) => {
+            Error::UnknownTableKey(ref msg) => {
                 write!(f, "Table {} doesn't buffered.", msg)
             }
-            BufferError::Tablespace(ref err) => write!(f, "Tablespace error: {}.", err),
+            Error::Tablespace(ref err) => write!(f, "Tablespace error: {}.", err),
         }
     }
 }
 
-impl fmt::Debug for BufferError {
+impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self)
     }
 }
 
-impl Error for BufferError {}
+impl std::error::Error for Error {}
 
-impl From<TablespaceError> for BufferError {
-    fn from(value: TablespaceError) -> Self {
-        BufferError::Tablespace(value)
+impl From<tablespace::error::Error> for Error {
+    fn from(value: tablespace::error::Error) -> Self {
+        Error::Tablespace(value)
     }
 }

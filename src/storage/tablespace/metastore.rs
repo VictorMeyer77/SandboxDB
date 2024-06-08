@@ -8,7 +8,7 @@ use serde_json::from_str;
 
 use crate::storage::tablespace::database::Database;
 use crate::storage::tablespace::encoding::TablespaceEncoding;
-use crate::storage::tablespace::error::TablespaceError;
+use crate::storage::tablespace::error::Error;
 use crate::storage::tablespace::meta::Meta;
 
 const META_FOLDER: &str = ".meta";
@@ -25,7 +25,7 @@ pub struct Metastore {
 }
 
 impl Metastore {
-    pub fn build(location: &str) -> Result<Metastore, TablespaceError> {
+    pub fn build(location: &str) -> Result<Metastore, Error> {
         fs::create_dir_all(&location)?;
         let location = fs::canonicalize(PathBuf::from(location))?;
         let mut metastore = Metastore {
@@ -38,12 +38,12 @@ impl Metastore {
         Ok(metastore)
     }
 
-    fn save(&mut self) -> Result<(), TablespaceError> {
+    fn save(&mut self) -> Result<(), Error> {
         self.meta.save(METASTORE_FILE_NAME, &self.as_json()?)?;
         Ok(())
     }
 
-    pub fn load_databases(&mut self) -> Result<(), TablespaceError> {
+    pub fn load_databases(&mut self) -> Result<(), Error> {
         for (name, path) in &self.database_paths {
             self.databases
                 .insert(name.clone(), Database::from_file(&path)?);
@@ -51,17 +51,13 @@ impl Metastore {
         Ok(())
     }
 
-    pub fn new_database(
-        &mut self,
-        name: &str,
-        location: Option<&str>,
-    ) -> Result<Database, TablespaceError> {
+    pub fn new_database(&mut self, name: &str, location: Option<&str>) -> Result<Database, Error> {
         let location = location
             .unwrap_or(self.location.join(name).to_str().unwrap())
             .to_string();
         let database = Database::build(name, &location)?;
         match self.database_paths.entry(database.name.clone()) {
-            Entry::Occupied(_) => Err(TablespaceError::ObjectExists(
+            Entry::Occupied(_) => Err(Error::ObjectExists(
                 "Database".to_string(),
                 name.to_string(),
             )),
@@ -75,7 +71,7 @@ impl Metastore {
         }
     }
 
-    pub fn delete_database(&mut self, name: &str) -> Result<(), TablespaceError> {
+    pub fn delete_database(&mut self, name: &str) -> Result<(), Error> {
         match self.database_paths.entry(name.to_string()) {
             Entry::Occupied(entry) => {
                 fs::remove_dir_all(entry.get())?;
@@ -83,7 +79,7 @@ impl Metastore {
                 self.database_paths.remove(name);
                 Ok(())
             }
-            Entry::Vacant(_) => Err(TablespaceError::ObjectExists(
+            Entry::Vacant(_) => Err(Error::ObjectExists(
                 "Database".to_string(),
                 name.to_string(),
             )),
@@ -96,13 +92,13 @@ impl Metastore {
 }
 
 impl<'a> TablespaceEncoding<'a, Metastore> for Metastore {
-    fn from_json(str: &str) -> Result<Metastore, TablespaceError> {
+    fn from_json(str: &str) -> Result<Metastore, Error> {
         let mut metastore: Metastore = from_str(str)?;
         metastore.meta = Meta::build(PathBuf::from(&metastore.location).join(META_FOLDER))?;
         Ok(metastore)
     }
 
-    fn from_file(path: &PathBuf) -> Result<Metastore, TablespaceError> {
+    fn from_file(path: &PathBuf) -> Result<Metastore, Error> {
         let file_str = fs::read_to_string(path.join(META_FOLDER).join(METASTORE_FILE_NAME))?;
         Metastore::from_json(&file_str)
     }

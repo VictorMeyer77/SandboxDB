@@ -8,7 +8,7 @@ use serde_json::from_str;
 
 use crate::storage::schema::schema::Schema;
 use crate::storage::tablespace::encoding::TablespaceEncoding;
-use crate::storage::tablespace::error::TablespaceError;
+use crate::storage::tablespace::error::Error;
 use crate::storage::tablespace::meta::Meta;
 use crate::storage::tablespace::table::Table;
 
@@ -27,7 +27,7 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn build(name: &str, location: &str) -> Result<Database, TablespaceError> {
+    pub fn build(name: &str, location: &str) -> Result<Database, Error> {
         fs::create_dir_all(&location)?;
         let location = fs::canonicalize(PathBuf::from(location))?;
         let mut database = Database {
@@ -41,12 +41,12 @@ impl Database {
         Ok(database)
     }
 
-    fn save(&mut self) -> Result<(), TablespaceError> {
+    fn save(&mut self) -> Result<(), Error> {
         self.meta.save(DATABASE_FILE_NAME, &self.as_json()?)?;
         Ok(())
     }
 
-    pub fn load_tables(&mut self) -> Result<(), TablespaceError> {
+    pub fn load_tables(&mut self) -> Result<(), Error> {
         for (name, path) in &self.table_paths {
             self.tables.insert(name.clone(), Table::from_file(&path)?);
         }
@@ -58,16 +58,13 @@ impl Database {
         name: &str,
         location: Option<&str>,
         schema: &Schema,
-    ) -> Result<Table, TablespaceError> {
+    ) -> Result<Table, Error> {
         let location = location
             .unwrap_or(self.location.join(name).to_str().unwrap())
             .to_string();
         let table = Table::build(name, &location, schema)?;
         match self.table_paths.entry(table.name.clone()) {
-            Entry::Occupied(_) => Err(TablespaceError::ObjectExists(
-                "Table".to_string(),
-                name.to_string(),
-            )),
+            Entry::Occupied(_) => Err(Error::ObjectExists("Table".to_string(), name.to_string())),
             Entry::Vacant(entry) => {
                 entry.insert(table.location.clone());
                 self.tables.insert(table.name.clone(), table.clone());
@@ -77,7 +74,7 @@ impl Database {
         }
     }
 
-    pub fn delete_table(&mut self, name: &str) -> Result<(), TablespaceError> {
+    pub fn delete_table(&mut self, name: &str) -> Result<(), Error> {
         match self.table_paths.entry(name.to_string()) {
             Entry::Occupied(entry) => {
                 fs::remove_dir_all(entry.get())?;
@@ -85,10 +82,7 @@ impl Database {
                 self.table_paths.remove(name);
                 Ok(())
             }
-            Entry::Vacant(_) => Err(TablespaceError::ObjectNotFound(
-                "Table".to_string(),
-                name.to_string(),
-            )),
+            Entry::Vacant(_) => Err(Error::ObjectNotFound("Table".to_string(), name.to_string())),
         }
     }
 
@@ -98,12 +92,12 @@ impl Database {
 }
 
 impl<'a> TablespaceEncoding<'a, Database> for Database {
-    fn from_json(str: &str) -> Result<Database, TablespaceError> {
+    fn from_json(str: &str) -> Result<Database, Error> {
         let mut database: Database = from_str(str)?;
         database.meta = Meta::build(PathBuf::from(&database.location).join(META_FOLDER))?;
         Ok(database)
     }
-    fn from_file(path: &PathBuf) -> Result<Database, TablespaceError> {
+    fn from_file(path: &PathBuf) -> Result<Database, Error> {
         let file_str = fs::read_to_string(path.join(META_FOLDER).join(DATABASE_FILE_NAME))?;
         Database::from_json(&file_str)
     }
