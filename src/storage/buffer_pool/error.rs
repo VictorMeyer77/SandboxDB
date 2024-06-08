@@ -1,17 +1,18 @@
-use crate::storage::tablespace::error::TablespaceError;
 use std::error::Error;
 use std::fmt;
 
+use crate::storage::tablespace::error::TablespaceError;
+
 pub enum BufferError {
-    UnknownCatalogTable(String),
+    UnknownTableKey(u32),
     Tablespace(TablespaceError),
 }
 
 impl fmt::Display for BufferError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            BufferError::UnknownCatalogTable(ref msg) => {
-                write!(f, "Table {} doesn't exist in catalog", msg)
+            BufferError::UnknownTableKey(ref msg) => {
+                write!(f, "Table {} doesn't buffered.", msg)
             }
             BufferError::Tablespace(ref err) => write!(f, "Tablespace error: {}.", err),
         }

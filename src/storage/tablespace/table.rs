@@ -44,7 +44,7 @@ impl Table {
         Ok(())
     }
 
-    fn load_file_paths(&mut self) -> Result<(), TablespaceError> {
+    pub fn load_file_paths(&mut self) -> Result<(), TablespaceError> {
         for entry in fs::read_dir(&self.location)? {
             let path = entry?.path();
             if path.is_file() {

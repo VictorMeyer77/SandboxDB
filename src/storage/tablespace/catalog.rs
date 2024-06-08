@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use crate::storage::tablespace::database::Database;
 use crate::storage::tablespace::encoding::TablespaceEncoding;
@@ -10,16 +11,16 @@ use crate::storage::tablespace::table::Table;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Catalog {
     metastore: Metastore,
-    pub tables: HashMap<String, CatalogTable>,
+    pub tables: HashMap<String, Rc<CatalogTable>>,
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct CatalogTable {
-    database: Box<Database>,
-    table: Box<Table>, // todo index, droits, keys...
+    pub database: Rc<Database>,
+    pub table: Table, // todo index, droits, keys...
 }
 
 impl CatalogTable {
-    pub fn build(database: Box<Database>, table: Box<Table>) -> CatalogTable {
+    pub fn build(database: Rc<Database>, table: Table) -> CatalogTable {
         CatalogTable { database, table }
     }
 }
@@ -35,14 +36,17 @@ impl Catalog {
     }
 
     pub fn refresh(&mut self) -> Result<(), TablespaceError> {
+        self.metastore = Metastore::from_file(&self.metastore.location)?;
         self.metastore.load_databases()?;
         for database in self.metastore.list_databases() {
-            let mut database = Box::new(self.metastore.databases.get(&database).unwrap().clone());
+            let mut database = self.metastore.databases.get(&database).unwrap().clone();
             database.load_tables()?;
+            let database = Rc::new(database);
             for table in database.list_tables() {
-                let table = Box::new(database.tables.get(&table).unwrap().clone());
+                let mut table = database.tables.get(&table).unwrap().clone();
+                table.load_file_paths()?;
                 let table_key = format!("{}.{}", &database.name, &table.name);
-                let catalog_table = CatalogTable::build(database.clone(), table);
+                let catalog_table = Rc::new(CatalogTable::build(Rc::clone(&database), table));
                 self.tables.insert(table_key, catalog_table);
             }
         }
@@ -53,14 +57,15 @@ impl Catalog {
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::rc::Rc;
 
     use crate::storage::schema::encoding::SchemaEncoding;
     use crate::storage::schema::schema::Schema;
     use crate::storage::tablespace::catalog::{Catalog, CatalogTable};
     use crate::storage::tablespace::database::Database;
     use crate::storage::tablespace::encoding::TablespaceEncoding;
-    use crate::storage::tablespace::metastore::tests::init_test_env;
     use crate::storage::tablespace::metastore::Metastore;
+    use crate::storage::tablespace::metastore::tests::{delete_test_env, init_test_env};
     use crate::storage::tablespace::table::Table;
 
     const TEST_PATH: &str = "target/tests/catalog";
@@ -84,32 +89,33 @@ mod tests {
         assert_eq!(catalog.metastore, metastore);
         assert_eq!(
             *catalog.tables.get("database_01.table_010").unwrap(),
-            CatalogTable::build(
-                Box::new(database_01.clone()),
-                Box::new(Table::from_file(&absolute_path.join("database_01/table_010")).unwrap())
-            )
+            Rc::new(CatalogTable::build(
+                Rc::new(database_01.clone()),
+                Table::from_file(&absolute_path.join("database_01/table_010")).unwrap()
+            ))
         );
         assert_eq!(
             *catalog.tables.get("database_01.table_011").unwrap(),
-            CatalogTable::build(
-                Box::new(database_01.clone()),
-                Box::new(Table::from_file(&absolute_path.join("database_01/table_011")).unwrap())
-            )
+            Rc::new(CatalogTable::build(
+                Rc::new(database_01.clone()),
+                Table::from_file(&absolute_path.join("database_01/table_011")).unwrap()
+            ))
         );
         assert_eq!(
             *catalog.tables.get("database_02.table_020").unwrap(),
-            CatalogTable::build(
-                Box::new(database_02.clone()),
-                Box::new(Table::from_file(&absolute_path.join("database_02/table_020")).unwrap())
-            )
+            Rc::new(CatalogTable::build(
+                Rc::new(database_02.clone()),
+                Table::from_file(&absolute_path.join("database_02/table_020")).unwrap()
+            ))
         );
         assert_eq!(
             *catalog.tables.get("database_02.table_021").unwrap(),
-            CatalogTable::build(
-                Box::new(database_02.clone()),
-                Box::new(Table::from_file(&absolute_path.join("database_02/table_021")).unwrap())
-            )
+            Rc::new(CatalogTable::build(
+                Rc::new(database_02.clone()),
+                Table::from_file(&absolute_path.join("database_02/table_021")).unwrap()
+            ))
         );
-        assert_eq!(catalog.tables.len(), 4)
+        assert_eq!(catalog.tables.len(), 4);
+        delete_test_env(TEST_PATH, "build");
     }
 }

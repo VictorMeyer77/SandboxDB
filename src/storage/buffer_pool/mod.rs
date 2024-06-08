@@ -1,3 +1,3 @@
-mod buffer_pool;
+pub mod buffer_pool;
 mod error;
 mod page_meta;

@@ -16,7 +16,7 @@ const METASTORE_FILE_NAME: &str = "metastore";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Metastore {
-    location: PathBuf,
+    pub location: PathBuf,
     pub database_paths: HashMap<String, PathBuf>,
     #[serde(skip)]
     pub databases: HashMap<String, Database>,

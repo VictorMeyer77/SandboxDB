@@ -1,4 +1,8 @@
+use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::rc::Rc;
+
+use crc32fast::hash;
 
 use crate::storage::buffer_pool::error::BufferError;
 use crate::storage::buffer_pool::page_meta::PageMeta;
@@ -10,11 +14,11 @@ const VACUUM_SIZE: f32 = 0.05;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BufferPool {
-    size: usize,
-    catalog: Catalog,
-    page_metas: HashMap<String, PageMeta>,
-    page_catalogs: HashMap<String, Box<CatalogTable>>,
-    pages: HashMap<String, Page>,
+    pub size: usize,
+    pub catalog: Catalog,
+    page_metas: HashMap<u32, PageMeta>,
+    page_catalogs: HashMap<u32, Rc<CatalogTable>>,
+    pages: HashMap<u32, Page>,
 }
 
 impl BufferPool {
@@ -37,64 +41,126 @@ impl BufferPool {
         used_space as f32 / self.size as f32 * 100.0
     }
 
-    pub fn load_page(&mut self, page: Page, catalog_key: &str) -> Result<(), BufferError> {
-        if !self.catalog.tables.contains_key(catalog_key) {
+    pub fn load_page(
+        &mut self,
+        page: Page,
+        catalog_id: &str,
+        file_id: &str,
+        page_id: u32,
+    ) -> Result<u32, BufferError> {
+        if !self.catalog.tables.contains_key(catalog_id) {
             self.catalog.refresh()?;
         }
-        if self.used_space() + page.header.page_size as f32 > BUFFER_LIMIT_USED_SIZE {
+        if self.used_space() + page.header.page_size as f32
+            > BUFFER_LIMIT_USED_SIZE * self.size as f32
+        {
             self.vacuum();
         }
-        self.pages
-            .insert(catalog_key.to_string(), page)
-            .ok_or(BufferError::UnknownCatalogTable(catalog_key.to_string()))?;
-        self.page_metas
-            .insert(catalog_key.to_string(), PageMeta::new())
-            .ok_or(BufferError::UnknownCatalogTable(catalog_key.to_string()))?;
+        let page_key = Self::buffer_page_key(catalog_id, file_id, page_id);
+        self.pages.insert(page_key, page);
+        self.page_metas.insert(page_key, PageMeta::new());
         self.page_catalogs.insert(
-            catalog_key.to_string(),
-            Box::new(
-                self.catalog
-                    .tables
-                    .get(catalog_key)
-                    .ok_or(BufferError::UnknownCatalogTable(catalog_key.to_string()))?
-                    .clone(),
-            ),
+            page_key,
+            Rc::clone(self.catalog.tables.get(catalog_id).unwrap()), // todo
         );
-        Ok(())
+        Ok(page_key)
     }
 
-    pub fn get_page() {
-        todo!()
+    fn buffer_page_key(catalog_id: &str, file_id: &str, page_id: u32) -> u32 {
+        let mut key = Vec::new();
+        key.extend_from_slice(catalog_id.as_bytes());
+        key.extend_from_slice(file_id.as_bytes());
+        key.extend_from_slice(&page_id.to_le_bytes());
+        hash(&key)
     }
 
-    pub fn get_page_catalog() {
-        todo!()
+    pub fn update_page(&mut self, page_key: &u32, page: Page) -> Result<(), BufferError> {
+        if let Some(_) = self.pages.get(page_key) {
+            if self.used_space() + page.header.page_size as f32
+                > BUFFER_LIMIT_USED_SIZE * self.size as f32
+            {
+                self.vacuum();
+            }
+            self.pages.insert(*page_key, page);
+            self.page_metas
+                .get_mut(page_key)
+                .unwrap()
+                .increment_access();
+            Ok(())
+        } else {
+            Err(BufferError::UnknownTableKey(*page_key))
+        }
+    }
+
+    pub fn get_page(&mut self, key: &u32) -> Result<&Page, BufferError> {
+        if let Some(page) = self.pages.get(key) {
+            self.page_metas.get_mut(key).unwrap().increment_access();
+            Ok(page)
+        } else {
+            Err(BufferError::UnknownTableKey(*key))
+        }
+    }
+
+    pub fn get_page_catalog(&mut self, key: &u32) -> Result<Rc<CatalogTable>, BufferError> {
+        if let Some(page_catalog) = self.page_catalogs.get(key) {
+            self.page_metas.get_mut(key).unwrap().increment_access();
+            Ok(Rc::clone(page_catalog))
+        } else {
+            Err(BufferError::UnknownTableKey(*key))
+        }
+    }
+
+    pub fn get_pages_by_table(&mut self, catalog_key: &str) -> Vec<(&u32, &Page)> {
+        let keys: Vec<&u32> = self
+            .page_catalogs
+            .iter()
+            .filter(|&(_, v)| *self.catalog.tables.get(catalog_key).unwrap() == *v)
+            .map(|(k, _)| k)
+            .collect();
+        for key in &keys {
+            self.page_metas.get_mut(key).unwrap().increment_access()
+        }
+        self.pages
+            .iter()
+            .filter(|(k, _)| keys.contains(&k))
+            .map(|(k, v)| (k, v))
+            .collect()
     }
 
     pub fn vacuum(&mut self) {
-        let meta_clone = self.page_metas.clone();
         let mut size_to_free = self.size as f32 * VACUUM_SIZE;
-        let max_last_access = self.max_last_access();
-        let max_count_access = self.max_count_access();
-        let mut metas: Vec<(&String, &PageMeta)> = meta_clone.iter().collect();
-        metas.sort_by(|(_, a), (_, b)| {
-            (a.count_access / max_count_access + a.last_access / max_last_access)
-                .cmp(&(b.count_access / max_count_access + b.last_access / max_last_access))
-        });
+        let mut meta_sorted = self.get_page_access_sorted();
         while size_to_free
             > self
                 .pages
-                .get(metas.first().unwrap().0)
+                .get(&meta_sorted.first().unwrap())
                 .unwrap()
                 .header
                 .page_size as f32
         {
-            let page_name = metas.first().unwrap().0;
-            self.pages.remove(page_name);
-            self.page_catalogs.remove(page_name);
-            self.page_metas.remove(page_name);
-            metas.remove(0);
+            let page_key = meta_sorted.first().unwrap();
+            let page = self.pages.remove(&page_key).unwrap();
+            size_to_free -= page.header.page_size as f32;
+            self.page_catalogs.remove(&page_key);
+            self.page_metas.remove(&page_key);
+            meta_sorted.remove(0);
         }
+    }
+
+    fn get_page_access_sorted(&self) -> Vec<u32> {
+        let max_last_access = self.max_last_access() as f64;
+        let max_count_access = self.max_count_access() as f64;
+        let mut metas: Vec<(u32, (f64, f64))> = self
+            .page_metas
+            .iter()
+            .map(|(k, v)| (k.clone(), (v.last_access as f64, v.count_access as f64)))
+            .collect();
+        metas.sort_by(|(_, a), (_, b)| {
+            (a.0 / max_last_access + a.1 / max_count_access)
+                .partial_cmp(&(b.0 / max_last_access + b.1 / max_count_access))
+                .unwrap_or(Ordering::Equal)
+        });
+        metas.iter().map(|(k, _)| k.clone()).collect()
     }
 
     fn max_last_access(&self) -> usize {
@@ -114,97 +180,321 @@ impl BufferPool {
     }
 }
 
-// spill
+// todo spill
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::thread;
+    use std::time::Duration;
+
     use crate::storage::schema::encoding::SchemaEncoding;
     use crate::storage::schema::schema::Schema;
-    use crate::storage::tablespace::metastore::tests::{delete_test_env, init_test_env};
     use crate::storage::tablespace::metastore::Metastore;
+    use crate::storage::tablespace::metastore::tests::{delete_test_env, init_test_env};
+
+    use super::*;
 
     const TEST_PATH: &str = "target/tests/buffer_pool";
+
+    fn get_buffer_pool_test(metastore: &mut Metastore) -> (BufferPool, Vec<u32>) {
+        let mut buffer_pool = BufferPool::build(100, metastore.location.to_str().unwrap());
+        let mut database = metastore.new_database("db_test", None).unwrap();
+        let schema =
+            Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP").unwrap();
+        let _ = database.new_table("tb_test", None, &schema).unwrap();
+        let page_key_one = buffer_pool
+            .load_page(
+                Page::build(&schema, 2, 1).unwrap(),
+                "db_test.tb_test",
+                "0",
+                0,
+            )
+            .unwrap();
+        let page_key_two = buffer_pool
+            .load_page(
+                Page::build(&schema, 2, 1).unwrap(),
+                "db_test.tb_test",
+                "0",
+                1,
+            )
+            .unwrap();
+        let page_key_three = buffer_pool
+            .load_page(
+                Page::build(&schema, 2, 1).unwrap(),
+                "db_test.tb_test",
+                "0",
+                2,
+            )
+            .unwrap();
+        (
+            buffer_pool,
+            vec![page_key_one, page_key_two, page_key_three],
+        )
+    }
+
+    #[test]
+    fn used_space_should_compute_memory() {
+        let path = init_test_env(TEST_PATH, "used_space");
+        let mut metastore = Metastore::build(path.to_str().unwrap()).unwrap();
+        let (buffer_pool, _) = get_buffer_pool_test(&mut metastore);
+        let used_space = buffer_pool.used_space();
+        assert_eq!(used_space, 6.0);
+        delete_test_env(TEST_PATH, "used_space");
+    }
+
+    #[test]
+    fn load_page_should_buffer_page() {
+        let path = init_test_env(TEST_PATH, "load_page");
+        let mut metastore = Metastore::build(path.to_str().unwrap()).unwrap();
+        let (mut buffer_pool, _) = get_buffer_pool_test(&mut metastore);
+        let page_key_four = buffer_pool
+            .load_page(
+                Page::build(
+                    &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP")
+                        .unwrap(),
+                    2,
+                    1,
+                )
+                .unwrap(),
+                "db_test.tb_test",
+                "0",
+                3,
+            )
+            .unwrap();
+        assert!(buffer_pool.page_catalogs.contains_key(&page_key_four));
+        assert!(buffer_pool.page_metas.contains_key(&page_key_four));
+        assert!(buffer_pool.pages.contains_key(&page_key_four));
+        assert_eq!(buffer_pool.page_catalogs.len(), 4);
+        assert_eq!(buffer_pool.page_metas.len(), 4);
+        assert_eq!(buffer_pool.pages.len(), 4);
+        delete_test_env(TEST_PATH, "load_page");
+    }
+
+    #[test]
+    fn update_page_should_replace_existing_page() {
+        let path = init_test_env(TEST_PATH, "update_page_01");
+        let mut metastore = Metastore::build(path.to_str().unwrap()).unwrap();
+        let (mut buffer_pool, page_keys) = get_buffer_pool_test(&mut metastore);
+        buffer_pool
+            .update_page(
+                &page_keys[1],
+                Page::build(
+                    &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP")
+                        .unwrap(),
+                    42,
+                    1,
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(
+            buffer_pool
+                .pages
+                .get(&page_keys[1])
+                .unwrap()
+                .header
+                .page_size,
+            42
+        );
+        assert_eq!(
+            buffer_pool
+                .page_metas
+                .get(&page_keys[1])
+                .unwrap()
+                .count_access,
+            2
+        );
+        delete_test_env(TEST_PATH, "update_page_01");
+    }
+
+    #[test]
+    #[should_panic]
+    fn update_page_should_panic_if_unknown_key() {
+        let path = init_test_env(TEST_PATH, "update_page_02");
+        let mut metastore = Metastore::build(path.to_str().unwrap()).unwrap();
+        let (mut buffer_pool, _) = get_buffer_pool_test(&mut metastore);
+        buffer_pool
+            .update_page(
+                &7,
+                Page::build(
+                    &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP")
+                        .unwrap(),
+                    42,
+                    1,
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        delete_test_env(TEST_PATH, "update_page_02");
+    }
+
+    #[test]
+    fn get_page_should_return_page_pointer() {
+        let path = init_test_env(TEST_PATH, "get_page_01");
+        let mut metastore = Metastore::build(path.to_str().unwrap()).unwrap();
+        let (mut buffer_pool, page_keys) = get_buffer_pool_test(&mut metastore);
+        let page = buffer_pool.get_page(&page_keys[0]).unwrap();
+        assert_eq!(
+            *page,
+            Page::build(
+                &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP")
+                    .unwrap(),
+                2,
+                1
+            )
+            .unwrap()
+        );
+        assert_eq!(
+            buffer_pool
+                .page_metas
+                .get(&page_keys[0])
+                .unwrap()
+                .count_access,
+            2
+        );
+        delete_test_env(TEST_PATH, "get_page_01");
+    }
+
+    #[test]
+    #[should_panic]
+    fn get_page_should_panic_if_unknown_key() {
+        let path = init_test_env(TEST_PATH, "get_page_02");
+        let mut metastore = Metastore::build(path.to_str().unwrap()).unwrap();
+        let (mut buffer_pool, _) = get_buffer_pool_test(&mut metastore);
+        let _ = buffer_pool.get_page(&9).unwrap();
+        delete_test_env(TEST_PATH, "get_page_02");
+    }
+
+    #[test]
+    fn get_page_catalog_should_return_page_pointer() {
+        let path = init_test_env(TEST_PATH, "get_page_catalog_01");
+        let mut metastore = Metastore::build(path.to_str().unwrap()).unwrap();
+        let (mut buffer_pool, page_keys) = get_buffer_pool_test(&mut metastore);
+        let catalog_table = buffer_pool.get_page_catalog(&page_keys[0]).unwrap();
+        assert_eq!(catalog_table.database.name, "db_test");
+        assert_eq!(catalog_table.table.name, "tb_test");
+        assert_eq!(
+            buffer_pool
+                .page_metas
+                .get(&page_keys[0])
+                .unwrap()
+                .count_access,
+            2
+        );
+        delete_test_env(TEST_PATH, "get_page_catalog_01");
+    }
+
+    #[test]
+    #[should_panic]
+    fn get_page_catalog_should_panic_if_unknown_key() {
+        let path = init_test_env(TEST_PATH, "get_page_catalog_02");
+        let mut metastore = Metastore::build(path.to_str().unwrap()).unwrap();
+        let (mut buffer_pool, _) = get_buffer_pool_test(&mut metastore);
+        let _ = buffer_pool.get_page_catalog(&9).unwrap();
+        delete_test_env(TEST_PATH, "get_page_catalog_02");
+    }
+
+    #[test]
+    fn get_pages_by_table_should_gather_page_by_table() {
+        let path = init_test_env(TEST_PATH, "get_pages_by_table");
+        let mut metastore = Metastore::build(path.to_str().unwrap()).unwrap();
+        let (mut buffer_pool, _) = get_buffer_pool_test(&mut metastore);
+        let pages: Vec<(&u32, &Page)> = buffer_pool.get_pages_by_table("db_test.tb_test");
+        assert_eq!(pages.len(), 3);
+        delete_test_env(TEST_PATH, "get_pages_by_table");
+    }
 
     #[test]
     fn vacuum_should_remove_page() {
         let path = init_test_env(TEST_PATH, "vacuum");
         let mut metastore = Metastore::build(path.to_str().unwrap()).unwrap();
-        let schema =
-            Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP").unwrap();
+        let (mut buffer_pool, page_keys) = get_buffer_pool_test(&mut metastore);
+        let _ = buffer_pool.get_page(&page_keys[0]).unwrap();
+        let page_key_four = buffer_pool
+            .load_page(
+                Page::build(
+                    &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP")
+                        .unwrap(),
+                    92,
+                    1,
+                )
+                .unwrap(),
+                "db_test.tb_test",
+                "0",
+                3,
+            )
+            .unwrap();
 
-        let mut pages: HashMap<String, Page> = HashMap::new();
-        pages.insert("page0".to_string(), Page::build(&schema, 2, 1).unwrap());
-        pages.insert("page1".to_string(), Page::build(&schema, 2, 1).unwrap());
-        pages.insert("page2".to_string(), Page::build(&schema, 2, 1).unwrap());
-        pages.insert("page3".to_string(), Page::build(&schema, 92, 1).unwrap());
+        let page_metas: Vec<u32> = buffer_pool.page_metas.keys().cloned().collect();
+        let pages: Vec<u32> = buffer_pool.pages.keys().cloned().collect();
+        let page_catalogs: Vec<u32> = buffer_pool.page_catalogs.keys().cloned().collect();
 
-        let mut page_metas: HashMap<String, PageMeta> = HashMap::new();
-        page_metas.insert(
-            "page0".to_string(),
-            PageMeta {
-                last_access: 0,
-                count_access: 5,
-            },
-        );
-        page_metas.insert(
-            "page1".to_string(),
-            PageMeta {
-                last_access: 1,
-                count_access: 1,
-            },
-        );
-        page_metas.insert(
-            "page2".to_string(),
-            PageMeta {
-                last_access: 2,
-                count_access: 1,
-            },
-        );
-        page_metas.insert(
-            "page3".to_string(),
-            PageMeta {
-                last_access: 3,
-                count_access: 1,
-            },
-        );
-
-        let mut page_catalogs: HashMap<String, Box<CatalogTable>> = HashMap::new();
-        let database = metastore.new_database("test", None).unwrap();
-        let mut database = Box::new(database);
-        let table = Box::new(database.new_table("test", None, &schema).unwrap());
-        let catalog_table_box = Box::new(CatalogTable::build(database, table));
-        page_catalogs.insert("page0".to_string(), catalog_table_box.clone());
-        page_catalogs.insert("page1".to_string(), catalog_table_box.clone());
-        page_catalogs.insert("page2".to_string(), catalog_table_box.clone());
-        page_catalogs.insert("page3".to_string(), catalog_table_box.clone());
-
-        let mut buffer_pool = BufferPool {
-            size: 100,
-            catalog: Catalog::build(path.to_str().unwrap()).unwrap(),
-            pages,
-            page_metas,
-            page_catalogs,
-        };
-
-        buffer_pool.vacuum();
-
-        let page_metas: Vec<String> = buffer_pool.page_metas.keys().cloned().collect();
-        let pages: Vec<String> = buffer_pool.pages.keys().cloned().collect();
-        let page_catalogs: Vec<String> = buffer_pool.page_catalogs.keys().cloned().collect();
-
-        println!("{:?}", pages);
-
-        assert!(page_metas.contains(&"page0".to_string()));
-        assert!(page_metas.contains(&"page3".to_string()));
+        assert!(page_metas.contains(&page_key_four));
+        assert!(page_metas.contains(&page_keys[0]));
         assert_eq!(page_metas.len(), 2);
-        assert!(pages.contains(&"page0".to_string()));
-        assert!(pages.contains(&"page3".to_string()));
+        assert!(pages.contains(&page_key_four));
+        assert!(pages.contains(&page_keys[0]));
         assert_eq!(pages.len(), 2);
-        assert!(page_catalogs.contains(&"page0".to_string()));
-        assert!(page_catalogs.contains(&"page3".to_string()));
+        assert!(page_catalogs.contains(&page_key_four));
+        assert!(page_catalogs.contains(&page_keys[0]));
         assert_eq!(page_catalogs.len(), 2);
-
         delete_test_env(TEST_PATH, "vacuum");
+    }
+
+    #[test]
+    fn get_page_access_sorted_should_compute_ordering() {
+        let path = init_test_env(TEST_PATH, "get_page_access_sorted");
+        let mut metastore = Metastore::build(path.to_str().unwrap()).unwrap();
+        let (mut buffer_pool, page_keys) = get_buffer_pool_test(&mut metastore);
+        buffer_pool.get_page(&page_keys[1]).unwrap();
+        buffer_pool.get_page(&page_keys[1]).unwrap();
+        thread::sleep(Duration::from_millis(1000));
+        let page_key_four = buffer_pool
+            .load_page(
+                Page::build(
+                    &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP")
+                        .unwrap(),
+                    2,
+                    1,
+                )
+                .unwrap(),
+                "db_test.tb_test",
+                "0",
+                3,
+            )
+            .unwrap();
+        let metas = buffer_pool.get_page_access_sorted();
+        assert!(metas[0] == page_keys[0] || metas[0] == page_keys[2]);
+        assert!(metas[1] == page_keys[0] || metas[1] == page_keys[2]);
+        assert_eq!(metas[2], page_key_four);
+        assert_eq!(metas[3], page_keys[1]);
+        delete_test_env(TEST_PATH, "get_page_access_sorted");
+    }
+
+    #[test]
+    fn max_count_access() {
+        let path = init_test_env(TEST_PATH, "max_count_access");
+        let mut metastore = Metastore::build(path.to_str().unwrap()).unwrap();
+        let (mut buffer_pool, page_keys) = get_buffer_pool_test(&mut metastore);
+        buffer_pool.get_page(&page_keys[1]).unwrap();
+        buffer_pool.get_page(&page_keys[1]).unwrap();
+        assert_eq!(buffer_pool.max_count_access(), 3);
+        delete_test_env(TEST_PATH, "max_count_access");
+    }
+
+    #[test]
+    fn max_last_access() {
+        let path = init_test_env(TEST_PATH, "max_last_access");
+        let mut metastore = Metastore::build(path.to_str().unwrap()).unwrap();
+        let (buffer_pool, page_keys) = get_buffer_pool_test(&mut metastore);
+        assert_eq!(
+            buffer_pool.max_last_access(),
+            buffer_pool
+                .page_metas
+                .get(&page_keys[2])
+                .unwrap()
+                .last_access
+        );
+        delete_test_env(TEST_PATH, "max_last_access");
     }
 }

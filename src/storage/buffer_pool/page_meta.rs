@@ -1,6 +1,6 @@
 use chrono::Local;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub struct PageMeta {
     pub last_access: usize,
     pub count_access: usize,
