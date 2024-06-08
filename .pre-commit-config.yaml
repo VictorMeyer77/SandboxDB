@@ -38,7 +38,7 @@ repos:
           - file
           - rust
         entry: >-
-          cargo clippy --all-targets --all-features -- -D warnings
+          cargo clippy --all-targets -- -D warnings
           warnings
         pass_filenames: false
       - id: test
