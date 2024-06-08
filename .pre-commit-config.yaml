@@ -38,7 +38,7 @@ repos:
           - file
           - rust
         entry: >-
-          cargo clippy --all-targets -- -D warnings
+          cargo clippy --bins --tests --examples --all -- -D rust_2018_idioms -D
           warnings
         pass_filenames: false
       - id: test
