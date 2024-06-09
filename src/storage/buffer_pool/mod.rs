@@ -191,8 +191,8 @@ mod tests {
 
     use crate::storage::schema::encoding::SchemaEncoding;
     use crate::storage::schema::Schema;
-    use crate::storage::tablespace::metastore::tests::{delete_test_env, init_test_env};
     use crate::storage::tablespace::metastore::Metastore;
+    use crate::storage::tests::{delete_test_env, init_test_env};
 
     use super::*;
 

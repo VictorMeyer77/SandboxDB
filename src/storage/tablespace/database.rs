@@ -112,7 +112,7 @@ mod tests {
     use crate::storage::schema::Schema;
     use crate::storage::tablespace::database::Database;
     use crate::storage::tablespace::encoding::TablespaceEncoding;
-    use crate::storage::tablespace::metastore::tests::{delete_test_env, init_test_env};
+    use crate::storage::tests::{delete_test_env, init_test_env};
 
     const TEST_PATH: &str = "target/tests/database";
 

@@ -108,20 +108,11 @@ impl<'a> TablespaceEncoding<'a, Metastore> for Metastore {
 pub mod tests {
     use std::path::Path;
 
+    use crate::storage::tests::{delete_test_env, init_test_env};
+
     use super::*;
 
     const TEST_PATH: &str = "target/tests/metastore";
-
-    pub fn init_test_env(test_path: &str, name: &str) -> PathBuf {
-        delete_test_env(name, test_path);
-        let path = PathBuf::from(test_path).join(name);
-        let _ = fs::create_dir_all(&path);
-        path
-    }
-
-    pub fn delete_test_env(test_path: &str, name: &str) {
-        let _ = fs::remove_dir_all(PathBuf::from(test_path).join(name));
-    }
 
     #[test]
     fn as_json_should_return_str_struct() {
