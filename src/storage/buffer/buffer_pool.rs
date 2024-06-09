@@ -4,13 +4,10 @@ use std::rc::Rc;
 
 use crc32fast::hash;
 
-use crate::storage::buffer_pool::error::Error;
-use crate::storage::buffer_pool::page_meta::PageMeta;
+use crate::storage::buffer::error::Error;
+use crate::storage::buffer::page_meta::PageMeta;
 use crate::storage::file::page::Page;
 use crate::storage::tablespace::catalog::{Catalog, CatalogTable};
-
-mod error;
-mod page_meta;
 
 const BUFFER_LIMIT_USED_SIZE: f32 = 0.95;
 const VACUUM_SIZE: f32 = 0.05;
@@ -185,7 +182,7 @@ impl BufferPool {
 // todo spill
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use std::thread;
     use std::time::Duration;
 

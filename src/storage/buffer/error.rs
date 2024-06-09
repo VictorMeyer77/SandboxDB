@@ -36,7 +36,7 @@ impl From<tablespace::error::Error> for Error {
 mod tests {
     use std::fs;
 
-    use crate::storage::buffer_pool::tests::get_buffer_pool_test;
+    use crate::storage::buffer::buffer_pool::tests::get_buffer_pool_test;
     use crate::storage::file::page::Page;
     use crate::storage::schema::encoding::SchemaEncoding;
     use crate::storage::schema::Schema;

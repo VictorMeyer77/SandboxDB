@@ -1,4 +1,4 @@
-pub mod buffer_pool;
+pub mod buffer;
 pub mod file;
 pub mod schema;
 pub mod tablespace;
