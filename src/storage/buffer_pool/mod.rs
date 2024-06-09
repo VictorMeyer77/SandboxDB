@@ -198,7 +198,7 @@ mod tests {
 
     const TEST_PATH: &str = "target/tests/buffer_pool";
 
-    fn get_buffer_pool_test(metastore: &mut Metastore) -> (BufferPool, Vec<u32>) {
+    pub fn get_buffer_pool_test(metastore: &mut Metastore) -> (BufferPool, Vec<u32>) {
         let mut buffer_pool = BufferPool::build(100, metastore.location.to_str().unwrap());
         let mut database = metastore.new_database("db_test", None).unwrap();
         let schema =
