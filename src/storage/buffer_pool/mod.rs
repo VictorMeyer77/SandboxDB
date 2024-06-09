@@ -64,7 +64,7 @@ impl BufferPool {
         self.page_metas.insert(page_key, PageMeta::new());
         self.page_catalogs.insert(
             page_key,
-            Rc::clone(self.catalog.tables.get(catalog_id).unwrap()), // todo
+            Rc::clone(self.catalog.tables.get(catalog_id).unwrap()),
         );
         Ok(page_key)
     }

@@ -7,14 +7,14 @@ use crate::storage::schema::error::Error;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Type {
-    Boolean,   // bool
-    Tinyint,   // i8
-    Smallint,  // i16
-    Int,       // i64
-    Bigint,    // i128
-    Float,     // f64
-    Timestamp, // u64  // todo convert i64
-    String,    // todo
+    Boolean,
+    Tinyint,
+    Smallint,
+    Int,
+    Bigint,
+    Float,
+    Timestamp,
+    String, // todo
 }
 
 impl Type {
@@ -23,10 +23,10 @@ impl Type {
             Type::Boolean => mem::size_of::<bool>(),
             Type::Tinyint => mem::size_of::<i8>(),
             Type::Smallint => mem::size_of::<i16>(),
-            Type::Int => mem::size_of::<i64>(),
+            Type::Int => mem::size_of::<i32>(),
             Type::Bigint => mem::size_of::<i128>(),
             Type::Float => mem::size_of::<f64>(),
-            Type::Timestamp => mem::size_of::<u64>(),
+            Type::Timestamp => mem::size_of::<i64>(),
             Type::String => 0, // TODO
         }
     }
