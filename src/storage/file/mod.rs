@@ -1,21 +1,22 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
 use crate::storage::file::encoding::FileEncoding;
 use crate::storage::file::error::Error;
 use crate::storage::file::file_header::FileHeader;
 use crate::storage::file::page::Page;
-use crate::storage::file::page_header::PageHeader;
 use crate::storage::schema::Schema;
 
 pub mod encoding;
 pub mod error;
-mod file_header;
+pub mod file_header;
 pub mod page;
-mod page_header;
-mod tuple;
-mod tuple_header;
+pub mod page_header;
+pub mod tuple;
+pub mod tuple_header;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct File {
     header: FileHeader,
     pages: HashMap<u32, Page>,
@@ -70,6 +71,7 @@ impl File {
     }
 }
 
+/*
 impl FileEncoding<File> for File {
     fn as_bytes(&self) -> Vec<u8> {
         let mut concat_bytes: Vec<u8> = Vec::new();
@@ -91,7 +93,9 @@ impl FileEncoding<File> for File {
         }
         Ok(File { header, pages })
     }
-}
+}*/
+
+impl FileEncoding for File {}
 
 #[cfg(test)]
 mod tests {

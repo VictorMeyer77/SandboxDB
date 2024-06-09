@@ -1,9 +1,11 @@
+use serde::{Deserialize, Serialize};
+
 use crate::storage::file::encoding::FileEncoding;
 use crate::storage::file::error::Error;
 use crate::storage::file::tuple_header::TupleHeader;
 use crate::storage::schema::Schema;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Tuple {
     pub header: TupleHeader,
     pub data: Vec<u8>,
@@ -25,6 +27,9 @@ impl Tuple {
     }
 }
 
+impl FileEncoding for Tuple {}
+
+/*
 impl FileEncoding<Tuple> for Tuple {
     fn as_bytes(&self) -> Vec<u8> {
         let mut concat_bytes: Vec<u8> = Vec::new();
@@ -39,7 +44,7 @@ impl FileEncoding<Tuple> for Tuple {
         let nulls = &bytes[1..(columns_total + 1)];
         Tuple::build(schema, nulls, &bytes[(columns_total + 1)..])
     }
-}
+}*/
 
 #[cfg(test)]
 mod tests {
@@ -64,8 +69,8 @@ mod tests {
                 .unwrap()
                 .as_bytes(),
             vec![
-                0, 0, 0, 1, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-                4, 4, 4, 4, 4, 4, 4, 4, 4,
+                0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 32, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4,
+                4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
             ]
         )
     }
@@ -75,8 +80,9 @@ mod tests {
         assert_eq!(
             Tuple::from_bytes(
                 &[
-                    0, 0, 0, 1, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-                    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+                    0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 32, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4,
+                    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+                    4
                 ],
                 Some(&get_test_schema()),
             )

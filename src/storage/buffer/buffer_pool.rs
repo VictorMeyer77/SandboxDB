@@ -162,7 +162,7 @@ impl BufferPool {
         metas.iter().map(|(k, _)| *k).collect()
     }
 
-    fn max_last_access(&self) -> usize {
+    fn max_last_access(&self) -> i64 {
         self.page_metas
             .values()
             .map(|meta| meta.last_access)

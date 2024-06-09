@@ -1,8 +1,8 @@
-use crate::storage::file::encoding::FileEncoding;
-use crate::storage::file::error::Error;
-use crate::storage::schema::Schema;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq)]
+use crate::storage::file::encoding::FileEncoding;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PageHeader {
     pub page_size: u32,
     pub slots: u32,
@@ -23,6 +23,9 @@ impl PageHeader {
     }
 }
 
+impl FileEncoding for PageHeader {}
+
+/*
 impl FileEncoding<PageHeader> for PageHeader {
     fn as_bytes(&self) -> Vec<u8> {
         let mut concat_bytes: Vec<u8> = Vec::new();
@@ -43,7 +46,7 @@ impl FileEncoding<PageHeader> for PageHeader {
             compression: u8::from_le_bytes(bytes[13..14].try_into().unwrap()),
         })
     }
-}
+}*/
 
 #[cfg(test)]
 mod tests {

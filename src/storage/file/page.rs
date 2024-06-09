@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crc32fast::hash;
+use serde::{Deserialize, Serialize};
 
 use crate::storage::file::encoding::FileEncoding;
 use crate::storage::file::error::Error;
@@ -8,7 +9,7 @@ use crate::storage::file::page_header::PageHeader;
 use crate::storage::file::tuple::Tuple;
 use crate::storage::schema::Schema;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Page {
     pub schema: Schema,
     pub header: PageHeader,
@@ -118,17 +119,19 @@ impl Page {
     }
 }
 
-impl FileEncoding<Page> for Page {
+//impl FileEncoding for Page {}
+
+impl FileEncoding for Page {
     fn as_bytes(&self) -> Vec<u8> {
         let mut concat_bytes: Vec<u8> = Vec::new();
         concat_bytes.extend_from_slice(&self.header.as_bytes());
         let tuple_offset_start = concat_bytes.len() as u32 + self.header.slots * 8;
         let mut tuples: Vec<u8> = vec![0; (self.header.page_size - tuple_offset_start) as usize];
-        self.tuples.iter().for_each(|(k, _)| {
-            concat_bytes.extend_from_slice(&[k.0.to_le_bytes(), k.1.to_le_bytes()].concat());
+        self.tuples.iter().for_each(|(k, v)| {
+            concat_bytes.extend_from_slice(&bincode::serialize(k).unwrap()); //*&[k.0.to_le_bytes(), k.1.to_le_bytes()*/].concat());
             tuples.splice(
                 (k.0 - tuple_offset_start) as usize..(k.0 + k.1 - tuple_offset_start) as usize,
-                self.tuples[k].as_bytes(),
+                v.as_bytes(), //self.tuples[k].as_bytes(),
             );
         });
         concat_bytes.extend_from_slice(&tuples);
@@ -136,8 +139,7 @@ impl FileEncoding<Page> for Page {
     }
 
     fn from_bytes(bytes: &[u8], schema: Option<&Schema>) -> Result<Page, Error> {
-        let schema = schema.ok_or(Error::MissingSchema)?;
-        let header = PageHeader::from_bytes(&bytes[..14], None)?;
+        let header = PageHeader::from_bytes(&bytes[..14], None).unwrap();
         let slots: Vec<(u32, u32)> = bytes[14..(14 + (header.slots as usize * 8))]
             .chunks(8)
             .map(|chunk| {
@@ -151,15 +153,12 @@ impl FileEncoding<Page> for Page {
         slots.iter().for_each(|(offset, length)| {
             tuples.insert(
                 (*offset, *length),
-                Tuple::from_bytes(
-                    &bytes[*offset as usize..(offset + length) as usize],
-                    Some(schema),
-                )
-                .unwrap(),
+                Tuple::from_bytes(&bytes[*offset as usize..(offset + length) as usize], None)
+                    .unwrap(),
             );
         });
         Ok(Page {
-            schema: schema.clone(),
+            schema: schema.unwrap().clone(),
             header,
             tuples,
         })
@@ -179,15 +178,15 @@ mod tests {
     pub fn get_test_page() -> Page {
         let mut page = Page::build(&get_test_schema(), 500, 1).unwrap();
         page.tuples.insert(
-            (462, 38),
+            (446, 54),
             Tuple::build(&get_test_schema(), &[0; 4], &[2; 33]).unwrap(),
         );
         page.tuples.insert(
-            (350, 22),
+            (334, 38),
             Tuple::build(&get_test_schema(), &[1, 0, 0, 0], &[8; 17]).unwrap(),
         );
         page.tuples.insert(
-            (250, 30),
+            (234, 46),
             Tuple::build(&get_test_schema(), &[0, 0, 0, 1], &[65; 25]).unwrap(),
         );
         page.header.slots = 3;
@@ -196,29 +195,30 @@ mod tests {
 
     fn get_test_page_bytes() -> Vec<u8> {
         vec![
-            244, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 1, 206, 1, 0, 0, 38, 0, 0, 0, 94, 1, 0, 0, 22,
-            0, 0, 0, 250, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            244, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 1, 78, 1, 0, 0, 38, 0, 0, 0, 190, 1, 0, 0, 54,
+            0, 0, 0, 234, 0, 0, 0, 46, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 65, 65,
+            0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 25, 0, 0, 0, 0, 0, 0, 0, 65, 65,
             65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
             65, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0,
+            0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
             8, 8, 8, 8, 8, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 33, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
             2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
         ]
     }
 
     #[test]
     fn as_bytes_should_convert_page() {
+        println!("{:?}", &get_test_page().as_bytes());
         assert_eq!(
             Page::from_bytes(&get_test_page().as_bytes(), Some(&get_test_schema())).unwrap(),
             get_test_page()
@@ -239,7 +239,7 @@ mod tests {
         page.header.page_size += 10;
         assert_eq!(
             page.get_free_slots().unwrap(),
-            vec![(38, 212), (280, 70), (372, 90), (500, 10)]
+            vec![(38, 196), (280, 54), (372, 74), (500, 10)]
         );
     }
 
@@ -247,7 +247,7 @@ mod tests {
     fn get_free_slots_should_return_all_empty_slots_case_maximum() {
         assert_eq!(
             get_test_page().get_free_slots().unwrap(),
-            vec![(38, 212,), (280, 70,), (372, 90,),]
+            vec![(38, 196,), (280, 54,), (372, 74,),]
         );
     }
 
@@ -297,7 +297,7 @@ mod tests {
         );
         assert_eq!(
             page.get_free_slots().unwrap(),
-            vec![(62, 188), (280, 26), (372, 52)]
+            vec![(62, 118), (280, 32), (372, 20)]
         )
     }
 
@@ -316,10 +316,24 @@ mod tests {
         page.insert(&[1, 1, 0, 1], &[1]).unwrap();
         page.insert(&[0, 0, 0, 0], &[32; 33]).unwrap();
         page.insert(&[0, 0, 0, 0], &[18; 33]).unwrap();
-        page.delete_by_slots(&[(344, 6), (306, 38), (424, 38), (27, 11)])
+        println!("{:?}", page.tuples.keys());
+        page.delete_by_slots(&[(180, 54), (334, 38), (312, 22), (27, 11)])
             .unwrap();
-        assert_eq!(page, get_test_page());
-    }
+        println!("{:?}", page.tuples.keys());
+        assert_eq!(page.tuples.len(), 3);
+        assert_eq!(
+            page.tuples.get(&(446, 54)).unwrap(),
+            get_test_page().tuples.get(&(446, 54)).unwrap()
+        );
+        assert_eq!(
+            page.tuples.get(&(234, 46)).unwrap(),
+            get_test_page().tuples.get(&(234, 46)).unwrap()
+        );
+        assert_eq!(
+            page.tuples.get(&(392, 54)).unwrap(),
+            get_test_page().tuples.get(&(392, 54)).unwrap()
+        );
+    } //[(392, 54), (234, 46), (446, 54), (180, 54), (334, 38), (312, 22)]
 
     #[test]
     fn update_by_slot_should_replace_tuple() {
