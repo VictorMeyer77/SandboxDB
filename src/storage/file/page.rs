@@ -78,15 +78,8 @@ impl Page {
         Ok(())
     }
 
-    pub fn update_by_slot(
-        &mut self,
-        slot: (u32, u32),
-        tuple: Tuple,
-    ) -> Result<(), Error> {
-        match self
-            .tuples
-            .insert(slot, tuple)
-        {
+    pub fn update_by_slot(&mut self, slot: (u32, u32), tuple: Tuple) -> Result<(), Error> {
+        match self.tuples.insert(slot, tuple) {
             None => Err(Error::InvalidSlot(slot)),
             Some(_) => Ok(()),
         }
@@ -114,7 +107,6 @@ impl Page {
         Ok(self.header.checksum == hash(&self.as_bytes()?[17..]))
     }
 }
-
 
 impl FileEncoding for Page {
     fn as_bytes(&self) -> Result<Vec<u8>, Error> {
@@ -151,25 +143,18 @@ impl FileEncoding for Page {
                 Tuple::from_bytes(&bytes[*offset as usize..(offset + length) as usize]).unwrap(),
             );
         });
-        Ok(Page {
-            header,
-            tuples,
-        })
+        Ok(Page { header, tuples })
     }
 }
 
 #[cfg(test)]
 pub mod tests {
-    use crate::storage::schema::encoding::SchemaEncoding;
+    use crate::storage::tests::get_test_schema;
 
     use super::*;
 
-    fn get_test_schema() -> Schema {
-        Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP").unwrap()
-    }
-
     pub fn get_test_page() -> Page {
-        let mut page = Page::build(&get_test_schema(), 500, 1).unwrap();
+        let mut page = Page::build(500, 1).unwrap();
         page.tuples.insert(
             (446, 54),
             Tuple::build(&get_test_schema(), &[0; 4], &[2; 33]).unwrap(),
@@ -240,13 +225,13 @@ pub mod tests {
     fn get_free_slots_should_return_all_empty_slots_case_maximum() {
         assert_eq!(
             get_test_page().get_free_slots().unwrap(),
-            vec![(38, 196,), (280, 54,), (372, 74,),]
+            vec![(38, 196,), (280, 54,), (372, 74,)]
         );
     }
 
     #[test]
     fn get_free_slots_should_return_empty_slots_case_none() {
-        let mut page = Page::build(&get_test_schema(), 500, 1).unwrap();
+        let mut page = Page::build(500, 1).unwrap();
         page.tuples.insert(
             (22, 478),
             Tuple::build(&get_test_schema(), &[0, 0, 0, 1], &[65; 25]).unwrap(),
@@ -257,7 +242,7 @@ pub mod tests {
 
     #[test]
     fn get_free_slots_should_return_empty_slots_case_minimum() {
-        let mut page = Page::build(&get_test_schema(), 500, 1).unwrap();
+        let mut page = Page::build(500, 1).unwrap();
         page.tuples.insert(
             (38, 103),
             Tuple::build(&get_test_schema(), &[0, 0, 0, 1], &[65; 25]).unwrap(),
@@ -280,14 +265,14 @@ pub mod tests {
     #[test]
     fn insert_should_append_tuple() {
         let mut page = get_test_page();
-        page.insert(Tuple::build(&get_test_schema(), &[1, 1, 0, 1], &[1]).unwrap()).unwrap();
-        page.insert(Tuple::build(&get_test_schema(), &[0, 0, 0, 0], &[32; 33]).unwrap()).unwrap();
-        page.insert(Tuple::build(&get_test_schema(), &[0, 0, 0, 0], &[18; 33]).unwrap()).unwrap();
+        page.insert(Tuple::build(&get_test_schema(), &[1, 1, 0, 1], &[1]).unwrap())
+            .unwrap();
+        page.insert(Tuple::build(&get_test_schema(), &[0, 0, 0, 0], &[32; 33]).unwrap())
+            .unwrap();
+        page.insert(Tuple::build(&get_test_schema(), &[0, 0, 0, 0], &[18; 33]).unwrap())
+            .unwrap();
         assert_eq!(page.bytes_size().unwrap(), 500);
-        assert_eq!(
-            page,
-            Page::from_bytes(&page.as_bytes().unwrap()).unwrap()
-        );
+        assert_eq!(page, Page::from_bytes(&page.as_bytes().unwrap()).unwrap());
         assert_eq!(
             page.get_free_slots().unwrap(),
             vec![(62, 118), (280, 32), (372, 20)]
@@ -299,16 +284,20 @@ pub mod tests {
     fn insert_should_panic_if_full_page() {
         let mut page = get_test_page();
         for _ in 0..8 {
-            page.insert(Tuple::build(&get_test_schema(), &[0, 0, 0, 0], &[18; 33]).unwrap()).unwrap();
+            page.insert(Tuple::build(&get_test_schema(), &[0, 0, 0, 0], &[18; 33]).unwrap())
+                .unwrap();
         }
     }
 
     #[test]
     fn delete_by_slots_should_remove_tuples() {
         let mut page = get_test_page();
-        page.insert(Tuple::build(&get_test_schema(), &[1, 1, 0, 1], &[1]).unwrap()).unwrap();
-        page.insert(Tuple::build(&get_test_schema(), &[0, 0, 0, 0], &[32; 33]).unwrap()).unwrap();
-        page.insert(Tuple::build(&get_test_schema(), &[0, 0, 0, 0], &[18; 33]).unwrap()).unwrap();
+        page.insert(Tuple::build(&get_test_schema(), &[1, 1, 0, 1], &[1]).unwrap())
+            .unwrap();
+        page.insert(Tuple::build(&get_test_schema(), &[0, 0, 0, 0], &[32; 33]).unwrap())
+            .unwrap();
+        page.insert(Tuple::build(&get_test_schema(), &[0, 0, 0, 0], &[18; 33]).unwrap())
+            .unwrap();
         page.delete_by_slots(&[(180, 54), (392, 54), (312, 22), (27, 11)])
             .unwrap();
         assert_eq!(page.tuples.len(), 3);
@@ -329,23 +318,37 @@ pub mod tests {
     #[test]
     fn update_by_slot_should_replace_tuple() {
         let mut page = get_test_page();
-        page.update_by_slot((234, 46), Tuple::build(&get_test_schema(), &[1, 1, 0, 1], &[1]).unwrap()).unwrap();
-        assert_eq!(page.tuples[&(234, 46)].as_bytes().unwrap(), [0, 4, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1]);
+        page.update_by_slot(
+            (234, 46),
+            Tuple::build(&get_test_schema(), &[1, 1, 0, 1], &[1]).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            page.tuples[&(234, 46)].as_bytes().unwrap(),
+            [0, 4, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1]
+        );
     }
 
     #[test]
     #[should_panic]
     fn update_by_slot_should_panic_key_not_found() {
         let mut page = get_test_page();
-        page.update_by_slot((251, 30), Tuple::build(&get_test_schema(), &[1, 1, 0, 1], &[1]).unwrap()).unwrap();
+        page.update_by_slot(
+            (251, 30),
+            Tuple::build(&get_test_schema(), &[1, 1, 0, 1], &[1]).unwrap(),
+        )
+        .unwrap();
     }
 
     #[test]
     fn read_by_slots_should_return_tuples() {
         let mut page = get_test_page();
-        page.insert(Tuple::build(&get_test_schema(),&[1, 1, 0, 1], &[1]).unwrap()).unwrap();
-        page.insert(Tuple::build(&get_test_schema(),&[0, 0, 0, 0], &[32; 33]).unwrap()).unwrap();
-        page.insert(Tuple::build(&get_test_schema(),&[0, 0, 0, 0], &[18; 33]).unwrap()).unwrap();
+        page.insert(Tuple::build(&get_test_schema(), &[1, 1, 0, 1], &[1]).unwrap())
+            .unwrap();
+        page.insert(Tuple::build(&get_test_schema(), &[0, 0, 0, 0], &[32; 33]).unwrap())
+            .unwrap();
+        page.insert(Tuple::build(&get_test_schema(), &[0, 0, 0, 0], &[18; 33]).unwrap())
+            .unwrap();
         let tuples = page
             .read_by_slots(&[(312, 22), (334, 38), (27, 11)])
             .unwrap();

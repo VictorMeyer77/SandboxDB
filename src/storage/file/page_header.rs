@@ -25,7 +25,6 @@ impl PageHeader {
 
 impl FileEncoding for PageHeader {}
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -3,9 +3,9 @@ use std::io::Write;
 
 use sandboxdb::storage::buffer::buffer_pool::BufferPool;
 use sandboxdb::storage::file::encoding::FileEncoding;
-use sandboxdb::storage::file::File;
 use sandboxdb::storage::file::page::Page;
 use sandboxdb::storage::file::tuple::Tuple;
+use sandboxdb::storage::file::File;
 use sandboxdb::storage::schema::encoding::SchemaEncoding;
 use sandboxdb::storage::schema::Schema;
 use sandboxdb::storage::tablespace::metastore::Metastore;

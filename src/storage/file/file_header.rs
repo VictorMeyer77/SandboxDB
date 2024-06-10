@@ -25,8 +25,6 @@ impl FileHeader {
 
 impl FileEncoding for FileHeader {}
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;

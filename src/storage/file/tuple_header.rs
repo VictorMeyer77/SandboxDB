@@ -19,7 +19,6 @@ impl TupleHeader {
 
 impl FileEncoding for TupleHeader {}
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -5,6 +5,8 @@ pub mod tablespace;
 
 #[cfg(test)]
 pub mod tests {
+    use crate::storage::schema::encoding::SchemaEncoding;
+    use crate::storage::schema::Schema;
     use std::fs;
     use std::path::PathBuf;
 
@@ -17,5 +19,9 @@ pub mod tests {
 
     pub fn delete_test_env(test_path: &str, name: &str) {
         let _ = fs::remove_dir_all(PathBuf::from(test_path).join(name));
+    }
+
+    pub fn get_test_schema() -> Schema {
+        Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP").unwrap()
     }
 }

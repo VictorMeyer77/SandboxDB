@@ -202,28 +202,13 @@ pub mod tests {
             Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP").unwrap();
         let _ = database.new_table("tb_test", None, &schema).unwrap();
         let page_key_one = buffer_pool
-            .load_page(
-                Page::build(&schema, 2, 1).unwrap(),
-                "db_test.tb_test",
-                "0",
-                0,
-            )
+            .load_page(Page::build(2, 1).unwrap(), "db_test.tb_test", "0", 0)
             .unwrap();
         let page_key_two = buffer_pool
-            .load_page(
-                Page::build(&schema, 2, 1).unwrap(),
-                "db_test.tb_test",
-                "0",
-                1,
-            )
+            .load_page(Page::build(2, 1).unwrap(), "db_test.tb_test", "0", 1)
             .unwrap();
         let page_key_three = buffer_pool
-            .load_page(
-                Page::build(&schema, 2, 1).unwrap(),
-                "db_test.tb_test",
-                "0",
-                2,
-            )
+            .load_page(Page::build(2, 1).unwrap(), "db_test.tb_test", "0", 2)
             .unwrap();
         (
             buffer_pool,
@@ -247,18 +232,7 @@ pub mod tests {
         let mut metastore = Metastore::build(path.to_str().unwrap()).unwrap();
         let (mut buffer_pool, _) = get_buffer_pool_test(&mut metastore);
         let page_key_four = buffer_pool
-            .load_page(
-                Page::build(
-                    &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP")
-                        .unwrap(),
-                    2,
-                    1,
-                )
-                .unwrap(),
-                "db_test.tb_test",
-                "0",
-                3,
-            )
+            .load_page(Page::build(2, 1).unwrap(), "db_test.tb_test", "0", 3)
             .unwrap();
         assert!(buffer_pool.page_catalogs.contains_key(&page_key_four));
         assert!(buffer_pool.page_metas.contains_key(&page_key_four));
@@ -275,16 +249,7 @@ pub mod tests {
         let mut metastore = Metastore::build(path.to_str().unwrap()).unwrap();
         let (mut buffer_pool, page_keys) = get_buffer_pool_test(&mut metastore);
         buffer_pool
-            .update_page(
-                &page_keys[1],
-                Page::build(
-                    &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP")
-                        .unwrap(),
-                    42,
-                    1,
-                )
-                .unwrap(),
-            )
+            .update_page(&page_keys[1], Page::build(42, 1).unwrap())
             .unwrap();
         assert_eq!(
             buffer_pool
@@ -313,16 +278,7 @@ pub mod tests {
         let mut metastore = Metastore::build(path.to_str().unwrap()).unwrap();
         let (mut buffer_pool, _) = get_buffer_pool_test(&mut metastore);
         buffer_pool
-            .update_page(
-                &7,
-                Page::build(
-                    &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP")
-                        .unwrap(),
-                    42,
-                    1,
-                )
-                .unwrap(),
-            )
+            .update_page(&7, Page::build(42, 1).unwrap())
             .unwrap();
         delete_test_env(TEST_PATH, "update_page_02");
     }
@@ -333,16 +289,7 @@ pub mod tests {
         let mut metastore = Metastore::build(path.to_str().unwrap()).unwrap();
         let (mut buffer_pool, page_keys) = get_buffer_pool_test(&mut metastore);
         let page = buffer_pool.get_page(&page_keys[0]).unwrap();
-        assert_eq!(
-            *page,
-            Page::build(
-                &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP")
-                    .unwrap(),
-                2,
-                1
-            )
-            .unwrap()
-        );
+        assert_eq!(*page, Page::build(2, 1).unwrap());
         assert_eq!(
             buffer_pool
                 .page_metas
@@ -410,18 +357,7 @@ pub mod tests {
         let (mut buffer_pool, page_keys) = get_buffer_pool_test(&mut metastore);
         let _ = buffer_pool.get_page(&page_keys[0]).unwrap();
         let page_key_four = buffer_pool
-            .load_page(
-                Page::build(
-                    &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP")
-                        .unwrap(),
-                    92,
-                    1,
-                )
-                .unwrap(),
-                "db_test.tb_test",
-                "0",
-                3,
-            )
+            .load_page(Page::build(92, 1).unwrap(), "db_test.tb_test", "0", 3)
             .unwrap();
 
         let page_metas: Vec<u32> = buffer_pool.page_metas.keys().cloned().collect();
@@ -449,18 +385,7 @@ pub mod tests {
         buffer_pool.get_page(&page_keys[1]).unwrap();
         thread::sleep(Duration::from_millis(1000));
         let page_key_four = buffer_pool
-            .load_page(
-                Page::build(
-                    &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP")
-                        .unwrap(),
-                    2,
-                    1,
-                )
-                .unwrap(),
-                "db_test.tb_test",
-                "0",
-                3,
-            )
+            .load_page(Page::build(2, 1).unwrap(), "db_test.tb_test", "0", 3)
             .unwrap();
         let metas = buffer_pool.get_page_access_sorted();
         assert!(metas[0] == page_keys[0] || metas[0] == page_keys[2]);

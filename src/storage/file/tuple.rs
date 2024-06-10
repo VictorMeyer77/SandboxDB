@@ -29,16 +29,11 @@ impl Tuple {
 
 impl FileEncoding for Tuple {}
 
-
 #[cfg(test)]
 mod tests {
-    use crate::storage::schema::encoding::SchemaEncoding;
+    use crate::storage::tests::get_test_schema;
 
     use super::*;
-
-    fn get_test_schema() -> Schema {
-        Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP").unwrap()
-    }
 
     #[test]
     #[should_panic]
@@ -51,7 +46,8 @@ mod tests {
         assert_eq!(
             Tuple::build(&get_test_schema(), &[0, 0, 1, 0], &[4; 32])
                 .unwrap()
-                .as_bytes().unwrap(),
+                .as_bytes()
+                .unwrap(),
             vec![
                 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 32, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4,
                 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
@@ -62,13 +58,10 @@ mod tests {
     #[test]
     fn from_bytes_should_convert_bytes() {
         assert_eq!(
-            Tuple::from_bytes(
-                &[
-                    0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 32, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4,
-                    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-                    4
-                ],
-            )
+            Tuple::from_bytes(&[
+                0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 32, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4,
+                4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
+            ],)
             .unwrap(),
             Tuple::build(&get_test_schema(), &[0, 0, 1, 0], &[4; 32]).unwrap()
         )

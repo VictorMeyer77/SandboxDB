@@ -53,18 +53,7 @@ mod tests {
         let (mut buffer_pool, _) = get_buffer_pool_test(&mut metastore);
         fs::remove_dir_all(path).unwrap();
         buffer_pool
-            .load_page(
-                Page::build(
-                    &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP")
-                        .unwrap(),
-                    2,
-                    1,
-                )
-                .unwrap(),
-                "wrong",
-                "0",
-                3,
-            )
+            .load_page(Page::build(2, 1).unwrap(), "wrong", "0", 3)
             .unwrap();
         delete_test_env(TEST_PATH, "tablespace_error");
     }
