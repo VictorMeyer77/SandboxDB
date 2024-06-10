@@ -1,4 +1,4 @@
-use bincode;
+use crate::storage::file::encoding::FileEncoding;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
@@ -98,34 +98,76 @@ impl WalRaw {
         }
     }
 }
-/*
-impl FileEncoding<WalRaw> for WalRaw {
-    fn as_bytes(&self) -> Vec<u8> {
-        let mut concat_bytes: Vec<u8> = Vec::new();
-        concat_bytes.extend_from_slice(&self.date_created.to_le_bytes());
-        concat_bytes.extend_from_slice(&self.transaction_id.to_le_bytes());
-        concat_bytes.extend_from_slice(&self.transaction_size.to_le_bytes());
-        concat_bytes.extend_from_slice(&self.catalog_table_id.to_le_bytes());
-        concat_bytes.extend_from_slice(&self.operation.to_le_bytes());
-        concat_bytes.extend_from_slice(&bincode::serialize());
-    }
 
-    fn from_bytes(bytes: &[u8], _schema: Option<&Schema>) -> Result<WalRaw, Error> {
-        todo!()
-    }
-}
-*/
+impl FileEncoding for WalRaw {}
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::buffer::wal_raw::WalRaw;
+    use crate::storage::buffer::wal_raw::{Operation, WalRaw};
+    use crate::storage::file::encoding::FileEncoding;
     use crate::storage::file::tuple::Tuple;
     use crate::storage::schema::encoding::SchemaEncoding;
     use crate::storage::schema::Schema;
 
+    fn get_test_wal_raw() -> WalRaw {
+        WalRaw::insert(
+            23,
+            66,
+            "87",
+            Tuple::build(
+                &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP")
+                    .unwrap(),
+                &[0, 0, 1, 0],
+                &[4; 32],
+            ).unwrap())
+    }
+
     #[test]
-    fn test() {
-        let ins = WalRaw::insert(
+    fn as_bytes_should_convert_tuple() {
+        assert_eq!(
+            get_test_wal_raw().as_bytes().unwrap()[8..],
+            vec![
+                23, 0, 0, 0, 66, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 56, 55, 0, 0, 0, 0, 0, 1, 0, 4,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 32, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4,
+                4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0
+            ]
+        );
+    }
+
+    #[test]
+    fn from_bytes_should_convert_bytes() {
+        let mut raw = get_test_wal_raw();
+        raw.date_created = 0;
+        assert_eq!(
+            WalRaw::from_bytes(&vec![
+                0, 0, 0, 0, 0, 0, 0, 0, 23, 0, 0, 0, 66, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 56, 55,
+                0, 0, 0, 0, 0, 1, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 32, 0, 0, 0, 0, 0, 0, 0,
+                4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+                4, 4, 4, 4, 0, 0, 0, 0
+            ])
+            .unwrap(),
+            raw
+        )
+    }
+
+    #[test]
+    fn insert_should_generate_raw() {
+        let raw = get_test_wal_raw();
+        assert_eq!(raw.transaction_id, 23);
+        assert_eq!(raw.transaction_size, 66);
+        assert_eq!(raw.catalog_table_id, "87");
+        assert_eq!(raw.operation, Operation::Insert);
+        assert!(raw.new_data.is_some());
+        assert!(raw.old_data.is_none());
+        assert!(raw.buffer_page_id.is_none());
+        assert!(raw.file_id.is_none());
+        assert!(raw.page_id.is_none());
+        assert!(raw.slot.is_none());
+    }
+
+    #[test]
+    fn delete_should_generate_raw() {
+        let raw = WalRaw::delete(
             23,
             66,
             "87",
@@ -135,8 +177,49 @@ mod tests {
                 &[0, 0, 1, 0],
                 &[4; 32],
             )
-            .unwrap(),
+                .unwrap(), 0, 1, 2, (3, 4),
         );
-        println!("{:?}", bincode::serialize(&ins));
+        assert_eq!(raw.transaction_id, 23);
+        assert_eq!(raw.transaction_size, 66);
+        assert_eq!(raw.catalog_table_id, "87");
+        assert_eq!(raw.operation, Operation::Delete);
+        assert!(raw.new_data.is_none());
+        assert!(raw.old_data.is_some());
+        assert_eq!(raw.buffer_page_id.unwrap(), 0);
+        assert_eq!(raw.file_id.unwrap(), 1);
+        assert_eq!(raw.page_id.unwrap(), 2);
+        assert_eq!(raw.slot.unwrap(), (3, 4));
+    }
+
+    #[test]
+    fn update_should_generate_raw() {
+        let raw = WalRaw::update(
+            23,
+            66,
+            "87",
+            Tuple::build(
+                &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP")
+                    .unwrap(),
+                &[0, 0, 1, 0],
+                &[4; 32],
+            )
+                .unwrap(),Tuple::build(
+                &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP")
+                    .unwrap(),
+                &[0, 0, 1, 0],
+                &[4; 32],
+            )
+                .unwrap(), 0, 1, 2, (3, 4),
+        );
+        assert_eq!(raw.transaction_id, 23);
+        assert_eq!(raw.transaction_size, 66);
+        assert_eq!(raw.catalog_table_id, "87");
+        assert_eq!(raw.operation, Operation::Update);
+        assert!(raw.new_data.is_some());
+        assert!(raw.old_data.is_some());
+        assert_eq!(raw.buffer_page_id.unwrap(), 0);
+        assert_eq!(raw.file_id.unwrap(), 1);
+        assert_eq!(raw.page_id.unwrap(), 2);
+        assert_eq!(raw.slot.unwrap(), (3, 4));
     }
 }

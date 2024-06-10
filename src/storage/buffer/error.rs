@@ -38,8 +38,6 @@ mod tests {
 
     use crate::storage::buffer::buffer_pool::tests::get_buffer_pool_test;
     use crate::storage::file::page::Page;
-    use crate::storage::schema::encoding::SchemaEncoding;
-    use crate::storage::schema::Schema;
     use crate::storage::tablespace::metastore::Metastore;
     use crate::storage::tests::{delete_test_env, init_test_env};
 
