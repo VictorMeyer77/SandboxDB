@@ -25,28 +25,7 @@ impl FileHeader {
 
 impl FileEncoding for FileHeader {}
 
-/*
-impl FileEncoding<FileHeader> for FileHeader {
-    fn as_bytes(&self) -> Vec<u8> {
-        let mut concat_bytes: Vec<u8> = Vec::new();
-        concat_bytes.extend_from_slice(&self.file_size.to_le_bytes());
-        concat_bytes.extend_from_slice(&self.pages.to_le_bytes());
-        concat_bytes.extend_from_slice(&[self.visibility]);
-        concat_bytes.extend_from_slice(&[self.compression]);
-        concat_bytes.extend_from_slice(&self.version);
-        concat_bytes
-    }
 
-    fn from_bytes(bytes: &[u8], _schema: Option<&Schema>) -> Result<FileHeader, Error> {
-        Ok(FileHeader {
-            file_size: u32::from_le_bytes(bytes[0..4].try_into().unwrap()),
-            pages: u32::from_le_bytes(bytes[4..8].try_into().unwrap()),
-            visibility: u8::from_le_bytes(bytes[8..9].try_into().unwrap()),
-            compression: u8::from_le_bytes(bytes[9..10].try_into().unwrap()),
-            version: bytes[10..13].try_into().unwrap(),
-        })
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -55,7 +34,7 @@ mod tests {
     #[test]
     fn as_bytes_should_convert_file_header() {
         assert_eq!(
-            FileHeader::build(1000, 3, [0, 12, 54]).as_bytes(),
+            FileHeader::build(1000, 3, [0, 12, 54]).as_bytes().unwrap(),
             [232, 3, 0, 0, 0, 0, 0, 0, 0, 3, 0, 12, 54]
         )
     }
@@ -63,9 +42,8 @@ mod tests {
     #[test]
     fn from_bytes_should_convert_bytes() {
         assert_eq!(
-            FileHeader::from_bytes(&[232, 3, 0, 0, 0, 0, 0, 0, 0, 3, 0, 12, 54], None).unwrap(),
+            FileHeader::from_bytes(&[232, 3, 0, 0, 0, 0, 0, 0, 0, 3, 0, 12, 54]).unwrap(),
             FileHeader::build(1000, 3, [0, 12, 54])
         )
     }
 }
-*/

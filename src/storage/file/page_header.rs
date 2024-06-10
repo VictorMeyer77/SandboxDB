@@ -25,28 +25,6 @@ impl PageHeader {
 
 impl FileEncoding for PageHeader {}
 
-/*
-impl FileEncoding<PageHeader> for PageHeader {
-    fn as_bytes(&self) -> Vec<u8> {
-        let mut concat_bytes: Vec<u8> = Vec::new();
-        concat_bytes.extend_from_slice(&self.page_size.to_le_bytes());
-        concat_bytes.extend_from_slice(&self.slots.to_le_bytes());
-        concat_bytes.extend_from_slice(&self.checksum.to_le_bytes());
-        concat_bytes.extend_from_slice(&[self.visibility]);
-        concat_bytes.extend_from_slice(&[self.compression]);
-        concat_bytes
-    }
-
-    fn from_bytes(bytes: &[u8], _schema: Option<&Schema>) -> Result<PageHeader, Error> {
-        Ok(PageHeader {
-            page_size: u32::from_le_bytes(bytes[0..4].try_into().unwrap()),
-            slots: u32::from_le_bytes(bytes[4..8].try_into().unwrap()),
-            checksum: u32::from_le_bytes(bytes[8..12].try_into().unwrap()),
-            visibility: u8::from_le_bytes(bytes[12..13].try_into().unwrap()),
-            compression: u8::from_le_bytes(bytes[13..14].try_into().unwrap()),
-        })
-    }
-}*/
 
 #[cfg(test)]
 mod tests {
@@ -55,7 +33,7 @@ mod tests {
     #[test]
     fn as_bytes_should_convert_page_header() {
         assert_eq!(
-            PageHeader::build(981, 3).as_bytes(),
+            PageHeader::build(981, 3).as_bytes().unwrap(),
             [213, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]
         )
     }
@@ -63,7 +41,7 @@ mod tests {
     #[test]
     fn from_bytes_should_convert_bytes() {
         assert_eq!(
-            PageHeader::from_bytes(&[213, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3], None,).unwrap(),
+            PageHeader::from_bytes(&[213, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]).unwrap(),
             PageHeader::build(981, 3)
         )
     }

@@ -7,20 +7,17 @@ use crate::storage::file::encoding::FileEncoding;
 use crate::storage::file::error::Error;
 use crate::storage::file::page_header::PageHeader;
 use crate::storage::file::tuple::Tuple;
-use crate::storage::schema::Schema;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Page {
-    pub schema: Schema,
     pub header: PageHeader,
     pub tuples: HashMap<(u32, u32), Tuple>,
 }
 
 impl Page {
-    pub fn build(schema: &Schema, page_size: u32, compression: u8) -> Result<Page, Error> {
+    pub fn build(page_size: u32, compression: u8) -> Result<Page, Error> {
         let header = PageHeader::build(page_size, compression);
         Ok(Page {
-            schema: schema.clone(),
             header,
             tuples: HashMap::new(),
         })
@@ -49,9 +46,8 @@ impl Page {
         Ok(free_slots)
     }
 
-    pub fn insert(&mut self, nulls: &[u8], data: &[u8]) -> Result<(), Error> {
-        let tuple = Tuple::build(&self.schema, nulls, data)?;
-        let tuple_size = tuple.bytes_size() as u32;
+    pub fn insert(&mut self, tuple: Tuple) -> Result<(), Error> {
+        let tuple_size = tuple.bytes_size()? as u32;
         let mut free_slots: Vec<(u32, u32)> = self
             .get_free_slots()?
             .into_iter()
@@ -85,12 +81,11 @@ impl Page {
     pub fn update_by_slot(
         &mut self,
         slot: (u32, u32),
-        nulls: &[u8],
-        data: &[u8],
+        tuple: Tuple,
     ) -> Result<(), Error> {
         match self
             .tuples
-            .insert(slot, Tuple::build(&self.schema, nulls, data)?)
+            .insert(slot, tuple)
         {
             None => Err(Error::InvalidSlot(slot)),
             Some(_) => Ok(()),
@@ -110,42 +105,42 @@ impl Page {
         Ok(tuples)
     }
 
-    pub fn refresh_checksum(&mut self) {
-        self.header.checksum = hash(&self.as_bytes()[17..])
+    pub fn refresh_checksum(&mut self) -> Result<(), Error> {
+        self.header.checksum = hash(&self.as_bytes()?[17..]);
+        Ok(())
     }
 
-    pub fn valid_checksum(&self) -> bool {
-        self.header.checksum == hash(&self.as_bytes()[17..])
+    pub fn valid_checksum(&self) -> Result<bool, Error> {
+        Ok(self.header.checksum == hash(&self.as_bytes()?[17..]))
     }
 }
 
-//impl FileEncoding for Page {}
 
 impl FileEncoding for Page {
-    fn as_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Result<Vec<u8>, Error> {
         let mut concat_bytes: Vec<u8> = Vec::new();
-        concat_bytes.extend_from_slice(&self.header.as_bytes());
+        concat_bytes.extend_from_slice(&self.header.as_bytes()?);
         let tuple_offset_start = concat_bytes.len() as u32 + self.header.slots * 8;
         let mut tuples: Vec<u8> = vec![0; (self.header.page_size - tuple_offset_start) as usize];
         self.tuples.iter().for_each(|(k, v)| {
-            concat_bytes.extend_from_slice(&bincode::serialize(k).unwrap()); //*&[k.0.to_le_bytes(), k.1.to_le_bytes()*/].concat());
+            concat_bytes.extend_from_slice(&bincode::serialize(k).unwrap());
             tuples.splice(
                 (k.0 - tuple_offset_start) as usize..(k.0 + k.1 - tuple_offset_start) as usize,
-                v.as_bytes(), //self.tuples[k].as_bytes(),
+                v.as_bytes().unwrap(),
             );
         });
         concat_bytes.extend_from_slice(&tuples);
-        concat_bytes
+        Ok(concat_bytes)
     }
 
-    fn from_bytes(bytes: &[u8], schema: Option<&Schema>) -> Result<Page, Error> {
-        let header = PageHeader::from_bytes(&bytes[..14], None).unwrap();
+    fn from_bytes(bytes: &[u8]) -> Result<Page, Error> {
+        let header = PageHeader::from_bytes(&bytes[..14]).unwrap();
         let slots: Vec<(u32, u32)> = bytes[14..(14 + (header.slots as usize * 8))]
             .chunks(8)
             .map(|chunk| {
                 (
-                    u32::from_le_bytes(chunk[0..4].try_into().unwrap()),
-                    u32::from_le_bytes(chunk[4..8].try_into().unwrap()),
+                    bincode::deserialize(&chunk[0..4]).unwrap(),
+                    bincode::deserialize(&chunk[4..8]).unwrap(),
                 )
             })
             .collect();
@@ -153,12 +148,10 @@ impl FileEncoding for Page {
         slots.iter().for_each(|(offset, length)| {
             tuples.insert(
                 (*offset, *length),
-                Tuple::from_bytes(&bytes[*offset as usize..(offset + length) as usize], None)
-                    .unwrap(),
+                Tuple::from_bytes(&bytes[*offset as usize..(offset + length) as usize]).unwrap(),
             );
         });
         Ok(Page {
-            schema: schema.unwrap().clone(),
             header,
             tuples,
         })
@@ -166,7 +159,7 @@ impl FileEncoding for Page {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use crate::storage::schema::encoding::SchemaEncoding;
 
     use super::*;
@@ -220,7 +213,7 @@ mod tests {
     fn as_bytes_should_convert_page() {
         println!("{:?}", &get_test_page().as_bytes());
         assert_eq!(
-            Page::from_bytes(&get_test_page().as_bytes(), Some(&get_test_schema())).unwrap(),
+            Page::from_bytes(&get_test_page().as_bytes().unwrap()).unwrap(),
             get_test_page()
         );
     }
@@ -229,7 +222,7 @@ mod tests {
     fn from_bytes_should_convert_bytes() {
         assert_eq!(
             get_test_page(),
-            Page::from_bytes(&get_test_page_bytes(), Some(&get_test_schema())).unwrap()
+            Page::from_bytes(&get_test_page_bytes()).unwrap()
         );
     }
 
@@ -287,13 +280,13 @@ mod tests {
     #[test]
     fn insert_should_append_tuple() {
         let mut page = get_test_page();
-        page.insert(&[1, 1, 0, 1], &[1]).unwrap();
-        page.insert(&[0, 0, 0, 0], &[32; 33]).unwrap();
-        page.insert(&[0, 0, 0, 0], &[18; 33]).unwrap();
-        assert_eq!(page.bytes_size(), 500);
+        page.insert(Tuple::build(&get_test_schema(), &[1, 1, 0, 1], &[1]).unwrap()).unwrap();
+        page.insert(Tuple::build(&get_test_schema(), &[0, 0, 0, 0], &[32; 33]).unwrap()).unwrap();
+        page.insert(Tuple::build(&get_test_schema(), &[0, 0, 0, 0], &[18; 33]).unwrap()).unwrap();
+        assert_eq!(page.bytes_size().unwrap(), 500);
         assert_eq!(
             page,
-            Page::from_bytes(&page.as_bytes(), Some(&get_test_schema())).unwrap()
+            Page::from_bytes(&page.as_bytes().unwrap()).unwrap()
         );
         assert_eq!(
             page.get_free_slots().unwrap(),
@@ -306,20 +299,18 @@ mod tests {
     fn insert_should_panic_if_full_page() {
         let mut page = get_test_page();
         for _ in 0..8 {
-            page.insert(&[0, 0, 0, 0], &[18; 33]).unwrap();
+            page.insert(Tuple::build(&get_test_schema(), &[0, 0, 0, 0], &[18; 33]).unwrap()).unwrap();
         }
     }
 
     #[test]
     fn delete_by_slots_should_remove_tuples() {
         let mut page = get_test_page();
-        page.insert(&[1, 1, 0, 1], &[1]).unwrap();
-        page.insert(&[0, 0, 0, 0], &[32; 33]).unwrap();
-        page.insert(&[0, 0, 0, 0], &[18; 33]).unwrap();
-        println!("{:?}", page.tuples.keys());
-        page.delete_by_slots(&[(180, 54), (334, 38), (312, 22), (27, 11)])
+        page.insert(Tuple::build(&get_test_schema(), &[1, 1, 0, 1], &[1]).unwrap()).unwrap();
+        page.insert(Tuple::build(&get_test_schema(), &[0, 0, 0, 0], &[32; 33]).unwrap()).unwrap();
+        page.insert(Tuple::build(&get_test_schema(), &[0, 0, 0, 0], &[18; 33]).unwrap()).unwrap();
+        page.delete_by_slots(&[(180, 54), (392, 54), (312, 22), (27, 11)])
             .unwrap();
-        println!("{:?}", page.tuples.keys());
         assert_eq!(page.tuples.len(), 3);
         assert_eq!(
             page.tuples.get(&(446, 54)).unwrap(),
@@ -330,40 +321,40 @@ mod tests {
             get_test_page().tuples.get(&(234, 46)).unwrap()
         );
         assert_eq!(
-            page.tuples.get(&(392, 54)).unwrap(),
-            get_test_page().tuples.get(&(392, 54)).unwrap()
+            page.tuples.get(&(334, 38)).unwrap(),
+            get_test_page().tuples.get(&(334, 38)).unwrap()
         );
-    } //[(392, 54), (234, 46), (446, 54), (180, 54), (334, 38), (312, 22)]
+    }
 
     #[test]
     fn update_by_slot_should_replace_tuple() {
         let mut page = get_test_page();
-        page.update_by_slot((250, 30), &[1, 1, 0, 1], &[1]).unwrap();
-        assert_eq!(page.tuples[&(250, 30)].as_bytes(), [0, 1, 1, 0, 1, 1]);
+        page.update_by_slot((234, 46), Tuple::build(&get_test_schema(), &[1, 1, 0, 1], &[1]).unwrap()).unwrap();
+        assert_eq!(page.tuples[&(234, 46)].as_bytes().unwrap(), [0, 4, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1]);
     }
 
     #[test]
     #[should_panic]
     fn update_by_slot_should_panic_key_not_found() {
         let mut page = get_test_page();
-        page.update_by_slot((251, 30), &[1, 1, 0, 1], &[1]).unwrap();
+        page.update_by_slot((251, 30), Tuple::build(&get_test_schema(), &[1, 1, 0, 1], &[1]).unwrap()).unwrap();
     }
 
     #[test]
     fn read_by_slots_should_return_tuples() {
         let mut page = get_test_page();
-        page.insert(&[1, 1, 0, 1], &[1]).unwrap();
-        page.insert(&[0, 0, 0, 0], &[32; 33]).unwrap();
-        page.insert(&[0, 0, 0, 0], &[18; 33]).unwrap();
+        page.insert(Tuple::build(&get_test_schema(),&[1, 1, 0, 1], &[1]).unwrap()).unwrap();
+        page.insert(Tuple::build(&get_test_schema(),&[0, 0, 0, 0], &[32; 33]).unwrap()).unwrap();
+        page.insert(Tuple::build(&get_test_schema(),&[0, 0, 0, 0], &[18; 33]).unwrap()).unwrap();
         let tuples = page
-            .read_by_slots(&[(344, 6), (350, 22), (27, 11)])
+            .read_by_slots(&[(312, 22), (334, 38), (27, 11)])
             .unwrap();
         assert_eq!(
-            *tuples[&(344, 6)],
+            *tuples[&(312, 22)],
             Tuple::build(&get_test_schema(), &[1, 1, 0, 1], &[1]).unwrap()
         );
         assert_eq!(
-            *tuples[&(350, 22)],
+            *tuples[&(334, 38)],
             Tuple::build(
                 &get_test_schema(),
                 &[1, 0, 0, 0],
@@ -376,8 +367,8 @@ mod tests {
     #[test]
     fn valid_checksum_should_control_integrity() {
         let mut page = get_test_page();
-        assert!(!page.valid_checksum());
-        page.refresh_checksum();
-        assert!(page.valid_checksum());
+        assert!(!page.valid_checksum().unwrap());
+        page.refresh_checksum().unwrap();
+        assert!(page.valid_checksum().unwrap());
     }
 }

@@ -6,7 +6,7 @@ use crate::storage::file::encoding::FileEncoding;
 use crate::storage::file::error::Error;
 use crate::storage::file::file_header::FileHeader;
 use crate::storage::file::page::Page;
-use crate::storage::schema::Schema;
+use crate::storage::file::page_header::PageHeader;
 
 pub mod encoding;
 pub mod error;
@@ -32,7 +32,7 @@ impl File {
 
     pub fn insert_page(&mut self, page: &Page) -> Result<(), Error> {
         let page_index = self.pages.len() as u32;
-        if self.header.bytes_size() as u32 + (page_index + 1) * page.header.page_size
+        if self.header.bytes_size()? as u32 + (page_index + 1) * page.header.page_size
             > self.header.file_size
         {
             Err(Error::PageOverflow(
@@ -71,35 +71,34 @@ impl File {
     }
 }
 
-/*
-impl FileEncoding<File> for File {
-    fn as_bytes(&self) -> Vec<u8> {
+
+impl FileEncoding for File {
+    fn as_bytes(&self) -> Result<Vec<u8>, Error> {
         let mut concat_bytes: Vec<u8> = Vec::new();
-        concat_bytes.extend_from_slice(&self.header.as_bytes());
+        concat_bytes.extend_from_slice(&self.header.as_bytes()?);
         self.pages
             .iter()
-            .for_each(|(_, v)| concat_bytes.extend_from_slice(&v.as_bytes()));
-        concat_bytes
+            .for_each(|(_, v)| concat_bytes.extend_from_slice(&v.as_bytes().unwrap()));
+        Ok(concat_bytes)
     }
 
-    fn from_bytes(bytes: &[u8], schema: Option<&Schema>) -> Result<File, Error> {
+    fn from_bytes(bytes: &[u8]) -> Result<File, Error> {
         let mut pages: HashMap<u32, Page> = HashMap::new();
-        let header = FileHeader::from_bytes(&bytes[..13], None)?;
-        let page_size = PageHeader::from_bytes(&bytes[13..27], None)?.page_size as usize;
+        let header = FileHeader::from_bytes(&bytes[..13])?;
+        let page_size = PageHeader::from_bytes(&bytes[13..27])?.page_size as usize;
         let chunks = bytes[13..].chunks(page_size);
         for (index, chunk) in (0_u32..).zip(chunks) {
-            let page = Page::from_bytes(chunk, schema)?;
+            let page = Page::from_bytes(chunk)?;
             pages.insert(index, page);
         }
         Ok(File { header, pages })
     }
-}*/
+}
 
-impl FileEncoding for File {}
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::file::tuple::Tuple;
+    use crate::storage::file::page::tests::get_test_page;
     use crate::storage::schema::encoding::SchemaEncoding;
 
     use super::*;
@@ -108,59 +107,40 @@ mod tests {
         Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP").unwrap()
     }
 
-    fn get_test_page() -> Page {
-        let mut page = Page::build(&get_test_schema(), 500, 1).unwrap();
-        page.tuples.insert(
-            (462, 38),
-            Tuple::build(&get_test_schema(), &[0; 4], &[2; 33]).unwrap(),
-        );
-        page.tuples.insert(
-            (350, 22),
-            Tuple::build(&get_test_schema(), &[1, 0, 0, 0], &[8; 17]).unwrap(),
-        );
-        page.tuples.insert(
-            (250, 30),
-            Tuple::build(&get_test_schema(), &[0, 0, 0, 1], &[65; 25]).unwrap(),
-        );
-        page.header.slots = 3;
-        page
-    }
 
     fn get_test_file() -> File {
         let mut file = File::build(500 * 10 + 10, 0, [0, 10, 28]);
-        let page = get_test_page();
-        file.pages.insert(0, page.clone());
+        file.pages.insert(0, get_test_page());
         file
     }
 
     fn get_test_bytes() -> Vec<u8> {
         vec![
-            146, 19, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 28, 244, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-            206, 1, 0, 0, 38, 0, 0, 0, 94, 1, 0, 0, 22, 0, 0, 0, 250, 0, 0, 0, 30, 0, 0, 0, 0, 0,
+            146, 19, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 28,             244, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 1, 78, 1, 0, 0, 38, 0, 0, 0, 190, 1, 0, 0, 54,
+            0, 0, 0, 234, 0, 0, 0, 46, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 25, 0, 0, 0, 0, 0, 0, 0, 65, 65,
+            65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
+            65, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0,
+            0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+            8, 8, 8, 8, 8, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-            65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            1, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-            2, 2, 2, 2,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 33, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+            2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
         ]
     }
 
     #[test]
     fn as_bytes_should_convert_file() {
         assert_eq!(
-            File::from_bytes(&get_test_file().as_bytes(), Some(&get_test_schema())).unwrap(),
+            File::from_bytes(&get_test_file().as_bytes().unwrap()).unwrap(),
             get_test_file()
         )
     }
@@ -168,7 +148,7 @@ mod tests {
     #[test]
     fn from_bytes_should_convert_bytes() {
         assert_eq!(
-            File::from_bytes(&get_test_bytes(), Some(&get_test_schema())).unwrap(),
+            File::from_bytes(&get_test_bytes()).unwrap(),
             get_test_file()
         )
     }

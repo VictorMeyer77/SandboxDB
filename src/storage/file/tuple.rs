@@ -29,22 +29,6 @@ impl Tuple {
 
 impl FileEncoding for Tuple {}
 
-/*
-impl FileEncoding<Tuple> for Tuple {
-    fn as_bytes(&self) -> Vec<u8> {
-        let mut concat_bytes: Vec<u8> = Vec::new();
-        concat_bytes.extend_from_slice(&self.header.as_bytes());
-        concat_bytes.extend_from_slice(self.data.as_slice());
-        concat_bytes
-    }
-
-    fn from_bytes(bytes: &[u8], schema: Option<&Schema>) -> Result<Tuple, Error> {
-        let schema = schema.ok_or(Error::MissingSchema)?;
-        let columns_total = schema.fields.len();
-        let nulls = &bytes[1..(columns_total + 1)];
-        Tuple::build(schema, nulls, &bytes[(columns_total + 1)..])
-    }
-}*/
 
 #[cfg(test)]
 mod tests {
@@ -67,7 +51,7 @@ mod tests {
         assert_eq!(
             Tuple::build(&get_test_schema(), &[0, 0, 1, 0], &[4; 32])
                 .unwrap()
-                .as_bytes(),
+                .as_bytes().unwrap(),
             vec![
                 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 32, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4,
                 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
@@ -84,7 +68,6 @@ mod tests {
                     4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
                     4
                 ],
-                Some(&get_test_schema()),
             )
             .unwrap(),
             Tuple::build(&get_test_schema(), &[0, 0, 1, 0], &[4; 32]).unwrap()

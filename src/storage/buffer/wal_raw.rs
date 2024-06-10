@@ -2,7 +2,6 @@ use bincode;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
-use crate::storage::file::encoding::FileEncoding;
 use crate::storage::file::tuple::Tuple;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
