@@ -48,14 +48,12 @@ impl BufferPool {
         file_id: &str,
         page_id: u32,
     ) -> Result<u32, Error> {
-        if !self.catalog.tables.contains_key(catalog_id) {
-            self.catalog.refresh()?;
-        }
         if self.used_space() + page.header.page_size as f32
             > BUFFER_LIMIT_USED_SIZE * self.size as f32
         {
             self.vacuum();
         }
+        self.catalog.refresh()?;
         let page_key = Self::buffer_page_key(catalog_id, file_id, page_id);
         self.pages.insert(page_key, page);
         self.page_metas.insert(page_key, PageMeta::build());
