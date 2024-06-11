@@ -20,3 +20,16 @@ impl PageMeta {
         self.count_access += 1;
     }
 }
+
+#[cfg(test)]
+pub mod tests {
+    use crate::storage::buffer::page_meta::PageMeta;
+
+    #[test]
+    fn increment_access_should_update_counters () {
+        let mut page_meta = PageMeta::build();
+        page_meta.increment_access();
+        assert_eq!(page_meta.count_access, 2)
+    }
+
+}

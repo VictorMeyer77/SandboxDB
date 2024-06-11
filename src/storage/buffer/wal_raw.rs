@@ -174,10 +174,7 @@ mod tests {
                 &[4; 32],
             )
             .unwrap(),
-            (0,
-            1,
-            2,
-            3, 4),
+            (0, 1, 2, 3, 4),
         );
         assert_eq!(raw.transaction_id, 23);
         assert_eq!(raw.transaction_size, 66);
@@ -211,10 +208,7 @@ mod tests {
                 &[4; 32],
             )
             .unwrap(),
-            (0,
-            1,
-            2,
-            3, 4),
+            (0, 1, 2, 3, 4),
         );
         assert_eq!(raw.transaction_id, 23);
         assert_eq!(raw.transaction_size, 66);
