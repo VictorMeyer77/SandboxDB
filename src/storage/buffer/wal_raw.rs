@@ -52,10 +52,7 @@ impl WalRaw {
         transaction_size: u32,
         catalog_table_id: &str,
         old_data: Tuple,
-        buffer_page_id: u32,
-        file_id: u32,
-        page_id: u32,
-        slot: (u32, u32),
+        id: (u32, u32, u32, u32, u32),
     ) -> WalRaw {
         WalRaw {
             date_created: Local::now().timestamp_millis(),
@@ -65,10 +62,10 @@ impl WalRaw {
             operation: Operation::Delete,
             old_data: Some(old_data),
             new_data: None,
-            buffer_page_id: Some(buffer_page_id),
-            file_id: Some(file_id),
-            page_id: Some(page_id),
-            slot: Some(slot),
+            buffer_page_id: Some(id.0),
+            file_id: Some(id.1),
+            page_id: Some(id.2),
+            slot: Some((id.3, id.4)),
         }
     }
 
@@ -78,10 +75,7 @@ impl WalRaw {
         catalog_table_id: &str,
         new_data: Tuple,
         old_data: Tuple,
-        buffer_page_id: u32,
-        file_id: u32,
-        page_id: u32,
-        slot: (u32, u32),
+        id: (u32, u32, u32, u32, u32),
     ) -> WalRaw {
         WalRaw {
             date_created: Local::now().timestamp_millis(),
@@ -91,10 +85,10 @@ impl WalRaw {
             operation: Operation::Update,
             old_data: Some(old_data),
             new_data: Some(new_data),
-            buffer_page_id: Some(buffer_page_id),
-            file_id: Some(file_id),
-            page_id: Some(page_id),
-            slot: Some(slot),
+            buffer_page_id: Some(id.0),
+            file_id: Some(id.1),
+            page_id: Some(id.2),
+            slot: Some((id.3, id.4)),
         }
     }
 }
@@ -125,7 +119,7 @@ mod tests {
     }
 
     #[test]
-    fn as_bytes_should_convert_tuple() {
+    fn as_bytes_should_convert_wal_raw() {
         assert_eq!(
             get_test_wal_raw().as_bytes().unwrap()[8..],
             vec![
@@ -141,7 +135,7 @@ mod tests {
         let mut raw = get_test_wal_raw();
         raw.date_created = 0;
         assert_eq!(
-            WalRaw::from_bytes(&vec![
+            WalRaw::from_bytes(&[
                 0, 0, 0, 0, 0, 0, 0, 0, 23, 0, 0, 0, 66, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 56, 55,
                 0, 0, 0, 0, 0, 1, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 32, 0, 0, 0, 0, 0, 0, 0,
                 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
@@ -180,10 +174,10 @@ mod tests {
                 &[4; 32],
             )
             .unwrap(),
-            0,
+            (0,
             1,
             2,
-            (3, 4),
+            3, 4),
         );
         assert_eq!(raw.transaction_id, 23);
         assert_eq!(raw.transaction_size, 66);
@@ -217,10 +211,10 @@ mod tests {
                 &[4; 32],
             )
             .unwrap(),
-            0,
+            (0,
             1,
             2,
-            (3, 4),
+            3, 4),
         );
         assert_eq!(raw.transaction_id, 23);
         assert_eq!(raw.transaction_size, 66);

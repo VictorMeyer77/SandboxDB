@@ -7,7 +7,7 @@ pub struct PageMeta {
 }
 
 impl PageMeta {
-    pub fn new() -> PageMeta {
+    pub fn build() -> PageMeta {
         let now = Local::now();
         PageMeta {
             last_access: now.timestamp_millis(),

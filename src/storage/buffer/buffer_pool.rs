@@ -58,7 +58,7 @@ impl BufferPool {
         }
         let page_key = Self::buffer_page_key(catalog_id, file_id, page_id);
         self.pages.insert(page_key, page);
-        self.page_metas.insert(page_key, PageMeta::new());
+        self.page_metas.insert(page_key, PageMeta::build());
         self.page_catalogs.insert(
             page_key,
             Rc::clone(self.catalog.tables.get(catalog_id).unwrap()),
