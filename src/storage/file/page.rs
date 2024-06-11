@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use crate::storage::file::encoding::Encoding;
 use crc32fast::hash;
 use serde::{Deserialize, Serialize};
 
+use crate::storage::file::encoding::Encoding;
 use crate::storage::file::error::Error;
 use crate::storage::file::page_header::PageHeader;
 use crate::storage::file::tuple::Tuple;
@@ -196,7 +196,6 @@ pub mod tests {
 
     #[test]
     fn as_bytes_should_convert_page() {
-        println!("{:?}", &get_test_page().as_bytes());
         assert_eq!(
             Page::from_bytes(&get_test_page().as_bytes().unwrap()).unwrap(),
             get_test_page()

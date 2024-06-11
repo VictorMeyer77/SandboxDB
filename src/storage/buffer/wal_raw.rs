@@ -1,7 +1,7 @@
-use crate::storage::file::encoding::Encoding;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
+use crate::storage::file::encoding::Encoding;
 use crate::storage::file::tuple::Tuple;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -96,14 +96,14 @@ impl WalRaw {
 impl Encoding for WalRaw {}
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use crate::storage::buffer::wal_raw::{Operation, WalRaw};
     use crate::storage::file::encoding::Encoding as TablespaceEncoding;
     use crate::storage::file::tuple::Tuple;
     use crate::storage::schema::encoding::Encoding as SchemaEncoding;
     use crate::storage::schema::Schema;
 
-    fn get_test_wal_raw() -> WalRaw {
+    pub fn get_test_wal_raw() -> WalRaw {
         WalRaw::insert(
             23,
             66,
