@@ -186,7 +186,7 @@ pub mod tests {
     use std::thread;
     use std::time::Duration;
 
-    use crate::storage::schema::encoding::SchemaEncoding;
+    use crate::storage::schema::encoding::Encoding;
     use crate::storage::schema::Schema;
     use crate::storage::tablespace::metastore::Metastore;
     use crate::storage::tests::{delete_test_env, init_test_env};

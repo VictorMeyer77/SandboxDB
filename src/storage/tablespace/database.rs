@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 
 use crate::storage::schema::Schema;
-use crate::storage::tablespace::encoding::TablespaceEncoding;
+use crate::storage::tablespace::encoding::Encoding;
 use crate::storage::tablespace::error::Error;
 use crate::storage::tablespace::meta::Meta;
 use crate::storage::tablespace::table::Table;
@@ -91,7 +91,7 @@ impl Database {
     }
 }
 
-impl<'a> TablespaceEncoding<'a, Database> for Database {
+impl<'a> Encoding<'a, Database> for Database {
     fn from_json(str: &str) -> Result<Database, Error> {
         let mut database: Database = from_str(str)?;
         database.meta = Meta::build(PathBuf::from(&database.location).join(META_FOLDER))?;
@@ -108,10 +108,10 @@ mod tests {
     use std::fs;
     use std::path::Path;
 
-    use crate::storage::schema::encoding::SchemaEncoding;
+    use crate::storage::schema::encoding::Encoding as SchemaEncoding;
     use crate::storage::schema::Schema;
     use crate::storage::tablespace::database::Database;
-    use crate::storage::tablespace::encoding::TablespaceEncoding;
+    use crate::storage::tablespace::encoding::Encoding as TablespaceEncoding;
     use crate::storage::tests::{delete_test_env, init_test_env};
 
     const TEST_PATH: &str = "target/tests/database";

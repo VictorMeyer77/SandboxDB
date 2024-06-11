@@ -1,6 +1,6 @@
+use crate::storage::schema::encoding::Encoding;
 use serde::{Deserialize, Serialize};
 
-use crate::storage::schema::encoding::SchemaEncoding;
 use crate::storage::schema::error::Error;
 use crate::storage::schema::field::Field;
 
@@ -25,7 +25,7 @@ impl Schema {
     }
 }
 
-impl SchemaEncoding<Schema> for Schema {
+impl Encoding<Schema> for Schema {
     fn from_str(schema: &str) -> Result<Schema, Error> {
         let fields_str = schema.trim().split_terminator(',');
         let fields_result: Vec<Result<Field, Error>> = fields_str.map(Field::from_str).collect();

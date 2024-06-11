@@ -1,8 +1,8 @@
 use std::mem;
 
+use crate::storage::schema::encoding::Encoding;
 use serde::{Deserialize, Serialize};
 
-use crate::storage::schema::encoding::SchemaEncoding;
 use crate::storage::schema::error::Error;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -32,7 +32,7 @@ impl Type {
     }
 }
 
-impl SchemaEncoding<Type> for Type {
+impl Encoding<Type> for Type {
     fn from_str(type_str: &str) -> Result<Type, Error> {
         match type_str.to_uppercase().trim() {
             "BOOLEAN" => Ok(Type::Boolean),

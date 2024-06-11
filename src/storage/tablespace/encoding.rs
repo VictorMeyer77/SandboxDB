@@ -5,7 +5,7 @@ use serde_json::to_string;
 
 use crate::storage::tablespace::error::Error;
 
-pub trait TablespaceEncoding<'a, T: Deserialize<'a> + Serialize>: Serialize {
+pub trait Encoding<'a, T: Deserialize<'a> + Serialize>: Serialize {
     fn as_json(&self) -> Result<String, Error> {
         Ok(to_string(&self)?)
     }

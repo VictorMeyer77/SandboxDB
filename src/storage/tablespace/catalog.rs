@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::storage::tablespace::database::Database;
-use crate::storage::tablespace::encoding::TablespaceEncoding;
+use crate::storage::tablespace::encoding::Encoding;
 use crate::storage::tablespace::error::Error;
 use crate::storage::tablespace::metastore::Metastore;
 use crate::storage::tablespace::table::Table;
@@ -59,11 +59,11 @@ mod tests {
     use std::fs;
     use std::rc::Rc;
 
-    use crate::storage::schema::encoding::SchemaEncoding;
+    use crate::storage::schema::encoding::Encoding as SchemaEncoding;
     use crate::storage::schema::Schema;
     use crate::storage::tablespace::catalog::{Catalog, CatalogTable};
     use crate::storage::tablespace::database::Database;
-    use crate::storage::tablespace::encoding::TablespaceEncoding;
+    use crate::storage::tablespace::encoding::Encoding as TablespaceEncoding;
     use crate::storage::tablespace::metastore::Metastore;
     use crate::storage::tablespace::table::Table;
     use crate::storage::tests::{delete_test_env, init_test_env};

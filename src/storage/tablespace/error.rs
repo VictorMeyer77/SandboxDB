@@ -47,9 +47,9 @@ mod tests {
     use std::fs;
     use std::path::Path;
 
-    use crate::storage::schema::encoding::SchemaEncoding;
+    use crate::storage::schema::encoding::Encoding as SchemaEncoding;
     use crate::storage::schema::Schema;
-    use crate::storage::tablespace::encoding::TablespaceEncoding;
+    use crate::storage::tablespace::encoding::Encoding as TablespaceEncoding;
     use crate::storage::tablespace::table::Table;
     use crate::storage::tests::{delete_test_env, init_test_env};
 

@@ -1,6 +1,5 @@
+use crate::storage::file;
 use serde::{Deserialize, Serialize};
-
-use crate::storage::file::encoding::FileEncoding;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FileHeader {
@@ -23,11 +22,12 @@ impl FileHeader {
     }
 }
 
-impl FileEncoding for FileHeader {}
+impl file::encoding::Encoding for FileHeader {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::file::encoding::Encoding;
 
     #[test]
     fn as_bytes_should_convert_file_header() {

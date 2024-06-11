@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 
 use crate::storage::tablespace::database::Database;
-use crate::storage::tablespace::encoding::TablespaceEncoding;
+use crate::storage::tablespace::encoding::Encoding;
 use crate::storage::tablespace::error::Error;
 use crate::storage::tablespace::meta::Meta;
 
@@ -91,7 +91,7 @@ impl Metastore {
     }
 }
 
-impl<'a> TablespaceEncoding<'a, Metastore> for Metastore {
+impl<'a> Encoding<'a, Metastore> for Metastore {
     fn from_json(str: &str) -> Result<Metastore, Error> {
         let mut metastore: Metastore = from_str(str)?;
         metastore.meta = Meta::build(PathBuf::from(&metastore.location).join(META_FOLDER))?;

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 
 use crate::storage::schema::Schema;
-use crate::storage::tablespace::encoding::TablespaceEncoding;
+use crate::storage::tablespace::encoding::Encoding;
 use crate::storage::tablespace::error::Error;
 use crate::storage::tablespace::meta::Meta;
 
@@ -91,7 +91,7 @@ impl Table {
     }
 }
 
-impl<'a> TablespaceEncoding<'a, Table> for Table {
+impl<'a> Encoding<'a, Table> for Table {
     fn from_json(str: &str) -> Result<Table, Error> {
         let mut table: Table = from_str(str)?;
         table.meta = Meta::build(PathBuf::from(&table.location).join(META_FOLDER))?;
@@ -106,7 +106,8 @@ impl<'a> TablespaceEncoding<'a, Table> for Table {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::schema::encoding::SchemaEncoding;
+    use crate::storage::schema::encoding::Encoding as SchemaEncoding;
+    use crate::storage::tablespace::encoding::Encoding as TablespaceEncoding;
     use crate::storage::tests::{delete_test_env, init_test_env};
 
     use super::*;

@@ -1,6 +1,5 @@
+use crate::storage::file::encoding::Encoding;
 use serde::{Deserialize, Serialize};
-
-use crate::storage::file::encoding::FileEncoding;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TupleHeader {
@@ -17,11 +16,12 @@ impl TupleHeader {
     }
 }
 
-impl FileEncoding for TupleHeader {}
+impl Encoding for TupleHeader {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::file::encoding::Encoding;
 
     #[test]
     fn as_bytes_should_convert_tuple_header() {

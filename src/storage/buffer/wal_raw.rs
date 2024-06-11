@@ -1,4 +1,4 @@
-use crate::storage::file::encoding::FileEncoding;
+use crate::storage::file::encoding::Encoding;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
@@ -99,14 +99,14 @@ impl WalRaw {
     }
 }
 
-impl FileEncoding for WalRaw {}
+impl Encoding for WalRaw {}
 
 #[cfg(test)]
 mod tests {
     use crate::storage::buffer::wal_raw::{Operation, WalRaw};
-    use crate::storage::file::encoding::FileEncoding;
+    use crate::storage::file::encoding::Encoding as TablespaceEncoding;
     use crate::storage::file::tuple::Tuple;
-    use crate::storage::schema::encoding::SchemaEncoding;
+    use crate::storage::schema::encoding::Encoding as SchemaEncoding;
     use crate::storage::schema::Schema;
 
     fn get_test_wal_raw() -> WalRaw {
@@ -119,7 +119,9 @@ mod tests {
                     .unwrap(),
                 &[0, 0, 1, 0],
                 &[4; 32],
-            ).unwrap())
+            )
+            .unwrap(),
+        )
     }
 
     #[test]
@@ -177,7 +179,11 @@ mod tests {
                 &[0, 0, 1, 0],
                 &[4; 32],
             )
-                .unwrap(), 0, 1, 2, (3, 4),
+            .unwrap(),
+            0,
+            1,
+            2,
+            (3, 4),
         );
         assert_eq!(raw.transaction_id, 23);
         assert_eq!(raw.transaction_size, 66);
@@ -203,13 +209,18 @@ mod tests {
                 &[0, 0, 1, 0],
                 &[4; 32],
             )
-                .unwrap(),Tuple::build(
+            .unwrap(),
+            Tuple::build(
                 &Schema::from_str("id BIGINT, cost FLOAT, available BOOLEAN, date TIMESTAMP")
                     .unwrap(),
                 &[0, 0, 1, 0],
                 &[4; 32],
             )
-                .unwrap(), 0, 1, 2, (3, 4),
+            .unwrap(),
+            0,
+            1,
+            2,
+            (3, 4),
         );
         assert_eq!(raw.transaction_id, 23);
         assert_eq!(raw.transaction_size, 66);

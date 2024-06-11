@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
+use crate::storage::file;
+use crate::storage::file::encoding::Encoding;
 use serde::{Deserialize, Serialize};
 
-use crate::storage::file::encoding::FileEncoding;
 use crate::storage::file::error::Error;
 use crate::storage::file::file_header::FileHeader;
 use crate::storage::file::page::Page;
@@ -71,7 +72,7 @@ impl File {
     }
 }
 
-impl FileEncoding for File {
+impl Encoding for File {
     fn as_bytes(&self) -> Result<Vec<u8>, Error> {
         let mut concat_bytes: Vec<u8> = Vec::new();
         concat_bytes.extend_from_slice(&self.header.as_bytes()?);

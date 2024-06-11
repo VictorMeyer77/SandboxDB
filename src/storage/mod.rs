@@ -5,7 +5,7 @@ pub mod tablespace;
 
 #[cfg(test)]
 pub mod tests {
-    use crate::storage::schema::encoding::SchemaEncoding;
+    use crate::storage::schema::encoding::Encoding;
     use crate::storage::schema::Schema;
     use std::fs;
     use std::path::PathBuf;

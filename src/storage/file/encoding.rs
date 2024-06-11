@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::storage::file::error::Error;
 
-pub trait FileEncoding: Serialize + for<'de> Deserialize<'de> {
+pub trait Encoding: Serialize + for<'de> Deserialize<'de> {
     fn as_bytes(&self) -> Result<Vec<u8>, Error> {
         Ok(bincode::serialize(&self)?)
     }

@@ -1,6 +1,6 @@
+use crate::storage::file::encoding::Encoding;
 use serde::{Deserialize, Serialize};
 
-use crate::storage::file::encoding::FileEncoding;
 use crate::storage::file::error::Error;
 use crate::storage::file::tuple_header::TupleHeader;
 use crate::storage::schema::Schema;
@@ -27,10 +27,11 @@ impl Tuple {
     }
 }
 
-impl FileEncoding for Tuple {}
+impl Encoding for Tuple {}
 
 #[cfg(test)]
 mod tests {
+    use crate::storage::file::encoding::Encoding;
     use crate::storage::tests::get_test_schema;
 
     use super::*;

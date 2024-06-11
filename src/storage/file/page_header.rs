@@ -1,6 +1,5 @@
+use crate::storage::file::encoding::Encoding;
 use serde::{Deserialize, Serialize};
-
-use crate::storage::file::encoding::FileEncoding;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PageHeader {
@@ -23,11 +22,12 @@ impl PageHeader {
     }
 }
 
-impl FileEncoding for PageHeader {}
+impl Encoding for PageHeader {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::file::encoding::Encoding;
 
     #[test]
     fn as_bytes_should_convert_page_header() {

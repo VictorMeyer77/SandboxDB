@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::storage::schema::_type::Type;
-use crate::storage::schema::encoding::SchemaEncoding;
+use crate::storage::schema::encoding::Encoding;
 use crate::storage::schema::error::Error;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -20,7 +20,7 @@ impl Field {
     }
 }
 
-impl SchemaEncoding<Field> for Field {
+impl Encoding<Field> for Field {
     fn from_str(field_str: &str) -> Result<Field, Error> {
         let name_and_type: Vec<&str> = field_str.split_whitespace().collect();
         if name_and_type.len() != 2 {
