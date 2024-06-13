@@ -24,6 +24,7 @@ impl Wal {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(&path)?;
         Ok(Wal {
             path,
@@ -55,7 +56,7 @@ impl Wal {
                 .split(|&b| b == b'\n')
                 .map(|bytes| WalRow::from_bytes(bytes).unwrap())
                 .collect();
-            self.checkpoint = self.file.seek(SeekFrom::Current(0))?;
+            self.checkpoint = self.file.stream_position()?;
             Ok(rows)
         }
     }
@@ -68,6 +69,7 @@ impl Wal {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(&self.path)?;
         self.write_transaction(&rows)?;
         self.checkpoint = 0;
@@ -77,11 +79,9 @@ impl Wal {
 
 #[cfg(test)]
 pub mod tests {
-    use std::io::Read;
-
     use crate::storage::buffer::wal::Wal;
-    use crate::storage::buffer::wal_row::tests::get_test_wal_row;
     use crate::storage::buffer::wal_row::Operation;
+    use crate::storage::buffer::wal_row::tests::get_test_wal_row;
     use crate::storage::tests::{delete_test_env, init_test_env};
 
     const TEST_PATH: &str = "target/tests/wal";
