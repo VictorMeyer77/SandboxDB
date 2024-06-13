@@ -4,7 +4,6 @@ use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 
 use crate::storage::buffer::error::Error;
 use crate::storage::buffer::wal_row::WalRow;
@@ -15,7 +14,7 @@ const WAL_FILE_NAME: &str = ".wal";
 pub struct Wal {
     path: PathBuf,
     file: File,
-    checkpoint: u64
+    checkpoint: u64,
 }
 
 impl Wal {
@@ -29,7 +28,7 @@ impl Wal {
         Ok(Wal {
             path,
             file,
-            checkpoint: 0
+            checkpoint: 0,
         })
     }
 
@@ -49,15 +48,20 @@ impl Wal {
         let mut file_buffer: Vec<u8> = vec![];
         self.file.seek(SeekFrom::Start(self.checkpoint))?;
         self.file.read_to_end(&mut file_buffer)?;
-        let rows: Vec<WalRow> = file_buffer[..file_buffer.len() - 1]
-            .split(|&b| b == b'\n')
-            .map(|bytes| WalRow::from_bytes(bytes).unwrap())
-            .collect();
-        self.checkpoint = self.file.seek(SeekFrom::Current(0))?;
-        Ok(rows)
+        if file_buffer.is_empty() {
+            Ok(vec![])
+        } else {
+            let rows: Vec<WalRow> = file_buffer[..file_buffer.len() - 1]
+                .split(|&b| b == b'\n')
+                .map(|bytes| WalRow::from_bytes(bytes).unwrap())
+                .collect();
+            self.checkpoint = self.file.seek(SeekFrom::Current(0))?;
+            Ok(rows)
+        }
     }
 
     pub fn vacuum(&mut self) -> Result<(), Error> {
+        self.commit()?;
         let rows = self.read()?;
         fs::remove_file(&self.path)?;
         self.file = OpenOptions::new()
@@ -66,21 +70,18 @@ impl Wal {
             .create(true)
             .open(&self.path)?;
         self.write_transaction(&rows)?;
+        self.checkpoint = 0;
         Ok(())
     }
-
 }
 
 #[cfg(test)]
 pub mod tests {
-    use std::fs;
-    use std::fs::File;
-    use std::io::{BufRead, BufReader, Read};
+    use std::io::Read;
 
     use crate::storage::buffer::wal::Wal;
     use crate::storage::buffer::wal_row::tests::get_test_wal_row;
-    use crate::storage::buffer::wal_row::{Operation, WalRow};
-    use crate::storage::file::encoding::Encoding;
+    use crate::storage::buffer::wal_row::Operation;
     use crate::storage::tests::{delete_test_env, init_test_env};
 
     const TEST_PATH: &str = "target/tests/wal";
@@ -89,16 +90,11 @@ pub mod tests {
     fn write_transaction_should_log_in_file() {
         let path = init_test_env(TEST_PATH, "write_transaction");
         let mut wal = Wal::build(path.to_str().unwrap()).unwrap();
-        let rows = vec![get_test_wal_row(), get_test_wal_row(), get_test_wal_row()];
-        wal.write_transaction(&rows).unwrap();
+        wal.write_transaction(&vec![get_test_wal_row(), get_test_wal_row()])
+            .unwrap();
+        wal.write_transaction(&vec![get_test_wal_row()]).unwrap();
         wal.commit().unwrap();
-        let mut file = File::open(path.join(".wal")).unwrap();
-        let mut file_buffer: Vec<u8> = vec![];
-        file.read_to_end(&mut file_buffer).unwrap();
-        let rows: Vec<WalRow> = file_buffer[..file_buffer.len() - 1]
-            .split(|&b| b == b'\n')
-            .map(|bytes| WalRow::from_bytes(bytes).unwrap())
-            .collect();
+        let rows = wal.read().unwrap();
         assert_eq!(rows.len(), 3);
         for row in rows {
             assert_eq!(row.transaction_id, 23);
@@ -143,5 +139,20 @@ pub mod tests {
         }
         assert_eq!(wal.checkpoint, 270);
         delete_test_env(TEST_PATH, "read_02");
+    }
+
+    #[test]
+    fn vacuum_should_truncate_from_offset() {
+        let path = init_test_env(TEST_PATH, "vacuum");
+        let mut wal = Wal::build(path.to_str().unwrap()).unwrap();
+        let rows = vec![get_test_wal_row(), get_test_wal_row(), get_test_wal_row()];
+        wal.write_transaction(&rows).unwrap();
+        wal.commit().unwrap();
+        wal.read().unwrap();
+        let rows = vec![get_test_wal_row()];
+        wal.write_transaction(&rows).unwrap();
+        wal.vacuum().unwrap();
+        assert_eq!(wal.read().unwrap(), rows);
+        delete_test_env(TEST_PATH, "vacuum");
     }
 }
